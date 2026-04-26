@@ -11,9 +11,9 @@
     </div>
 
     <p-table #dt [value]="usuarios()" [loading]="loading" dataKey="id"
-        [globalFilterFields]="['nombres','apellidos','correo','estado']"
+        [globalFilterFields]="['fullName','email','positionName']"
         [paginator]="true" [rows]="10" [rowsPerPageOptions]="[10,25,50]"
-        sortField="apellidos" [sortOrder]="1"
+        sortField="fullName" [sortOrder]="1"
         styleClass="p-datatable-striped">
 
         <ng-template #caption>
@@ -25,39 +25,41 @@
 
         <ng-template #header>
             <tr>
-                <th pSortableColumn="apellidos">Nombre <p-sortIcon field="apellidos" /></th>
-                <th pSortableColumn="correo">Correo <p-sortIcon field="correo" /></th>
-                <th>Institucion</th>
+                <th pSortableColumn="fullName">Nombre completo <p-sortIcon field="fullName" /></th>
+                <th pSortableColumn="email">Correo <p-sortIcon field="email" /></th>
+                <th>Cargo</th>
                 <th>Roles</th>
-                <th pSortableColumn="estado">Estado <p-sortIcon field="estado" /></th>
+                <th pSortableColumn="active">Estado <p-sortIcon field="active" /></th>
                 <th class="w-36">Acciones</th>
             </tr>
         </ng-template>
 
         <ng-template #body let-u>
             <tr>
-                <td class="font-medium">{{ u.apellidos }}, {{ u.nombres }}</td>
-                <td class="text-sm text-surface-500">{{ u.correo }}</td>
-                <td class="text-sm">{{ getNombreInstitucion(u.idInstitucion) }}</td>
+                <td class="font-medium">{{ u.fullName }}</td>
+                <td class="text-sm text-surface-500">{{ u.email }}</td>
+                <td class="text-sm">{{ u.positionName || '-' }}</td>
                 <td>
                     <div class="flex flex-wrap gap-1">
                         @for (rol of u.roles; track rol) {
                             <p-tag [value]="rol" [severity]="rolSeverity(rol)" styleClass="text-xs" />
                         }
-                        @if (!u.roles.length) {
+                        @if (!u.roles?.length) {
                             <span class="text-surface-400 text-xs">Sin roles</span>
                         }
                     </div>
                 </td>
                 <td>
-                    <p-tag [value]="u.estado" [severity]="u.estado === 'ACTIVO' ? 'success' : 'danger'" />
+                    <p-tag [value]="u.active ? 'ACTIVO' : 'INACTIVO'" [severity]="u.active ? 'success' : 'danger'" />
                 </td>
                 <td>
                     <div class="flex gap-1">
                         <p-button icon="pi pi-pencil" [rounded]="true" [text]="true" severity="secondary"
                             pTooltip="Editar" tooltipPosition="top" (onClick)="abrirEditar(u)" />
-                        <p-button icon="pi pi-shield" [rounded]="true" [text]="true" severity="info"
-                            pTooltip="Gestionar roles" tooltipPosition="top" (onClick)="abrirRoles(u)" />
+                        <p-button [icon]="u.active ? 'pi pi-ban' : 'pi pi-check-circle'" [rounded]="true" [text]="true"
+                            [severity]="u.active ? 'warn' : 'success'"
+                            [pTooltip]="u.active ? 'Desactivar' : 'Activar'" tooltipPosition="top"
+                            (onClick)="toggleEstado(u)" />
                         <p-button icon="pi pi-trash" [rounded]="true" [text]="true" severity="danger"
                             pTooltip="Eliminar" tooltipPosition="top" (onClick)="confirmarEliminar(u)" />
                     </div>
@@ -77,34 +79,32 @@
 
     <div class="flex flex-col gap-4 pt-2">
         <div class="flex flex-col gap-1">
-            <label class="font-medium text-sm">Correo electronico <span class="text-red-500">*</span></label>
-            <input pInputText type="email" [(ngModel)]="form.correo" placeholder="usuario@correo.com" />
+            <label class="font-medium text-sm">Correo electrónico <span class="text-red-500">*</span></label>
+            <input pInputText type="email" [(ngModel)]="form.email" placeholder="usuario@empresa.com" />
         </div>
         <div class="flex flex-col gap-1">
             <label class="font-medium text-sm">Contraseña <span class="text-red-500">*</span></label>
-            <p-password [(ngModel)]="form.contrasena" [feedback]="true" [toggleMask]="true" styleClass="w-full" inputStyleClass="w-full" placeholder="Contrasena segura" />
+            <p-password [(ngModel)]="form.password" [feedback]="true" [toggleMask]="true"
+                styleClass="w-full" inputStyleClass="w-full" placeholder="Contraseña segura" />
+        </div>
+        <div class="flex flex-col gap-1">
+            <label class="font-medium text-sm">Nombre completo <span class="text-red-500">*</span></label>
+            <input pInputText [(ngModel)]="form.fullName" placeholder="Ej: Juan Pérez" />
         </div>
         <div class="grid grid-cols-2 gap-4">
             <div class="flex flex-col gap-1">
-                <label class="font-medium text-sm">Nombres <span class="text-red-500">*</span></label>
-                <input pInputText [(ngModel)]="form.nombres" placeholder="Ej: Juan" />
+                <label class="font-medium text-sm">Cargo</label>
+                <input pInputText [(ngModel)]="form.positionName" placeholder="Ej: Gerente" />
             </div>
             <div class="flex flex-col gap-1">
-                <label class="font-medium text-sm">Apellidos <span class="text-red-500">*</span></label>
-                <input pInputText [(ngModel)]="form.apellidos" placeholder="Ej: Perez" />
+                <label class="font-medium text-sm">Teléfono</label>
+                <input pInputText [(ngModel)]="form.phone" placeholder="Ej: 70012345" />
             </div>
         </div>
-        <div class="grid grid-cols-2 gap-4">
-            <div class="flex flex-col gap-1">
-                <label class="font-medium text-sm">Institución</label>
-                <p-select [options]="institucionesOptions" [(ngModel)]="form.idInstitucion"
-                    placeholder="Seleccionar" [filter]="true" [showClear]="true" appendTo="body" />
-            </div>
-            <div class="flex flex-col gap-1">
-                <label class="font-medium text-sm">Rol inicial</label>
-                <p-select [options]="rolesOptions" [(ngModel)]="form.codigoRol"
-                    placeholder="Seleccionar rol" [showClear]="true" appendTo="body" />
-            </div>
+        <div class="flex flex-col gap-1">
+            <label class="font-medium text-sm">Roles</label>
+            <p-multiselect [options]="rolesOptions" [(ngModel)]="form.roles"
+                placeholder="Seleccionar roles" appendTo="body" styleClass="w-full" />
         </div>
     </div>
 
@@ -116,48 +116,36 @@
 
 <!-- Dialog editar usuario -->
 <p-dialog [(visible)]="editarVisible" header="Editar Usuario"
-    [modal]="true" [style]="{width: '420px'}" [draggable]="false">
+    [modal]="true" [style]="{width: '480px'}" [draggable]="false">
 
     <div class="flex flex-col gap-4 pt-2">
+        <div class="flex flex-col gap-1">
+            <label class="font-medium text-sm">Nombre completo <span class="text-red-500">*</span></label>
+            <input pInputText [(ngModel)]="editForm.fullName" placeholder="Ej: Juan Pérez" />
+        </div>
+        <div class="flex flex-col gap-1">
+            <label class="font-medium text-sm">Correo electrónico <span class="text-red-500">*</span></label>
+            <input pInputText type="email" [(ngModel)]="editForm.email" placeholder="usuario@empresa.com" />
+        </div>
         <div class="grid grid-cols-2 gap-4">
             <div class="flex flex-col gap-1">
-                <label class="font-medium text-sm">Nombres <span class="text-red-500">*</span></label>
-                <input pInputText [(ngModel)]="editForm.nombres" placeholder="Ej: Juan" />
+                <label class="font-medium text-sm">Cargo</label>
+                <input pInputText [(ngModel)]="editForm.positionName" placeholder="Ej: Gerente" />
             </div>
             <div class="flex flex-col gap-1">
-                <label class="font-medium text-sm">Apellidos <span class="text-red-500">*</span></label>
-                <input pInputText [(ngModel)]="editForm.apellidos" placeholder="Ej: Perez" />
+                <label class="font-medium text-sm">Teléfono</label>
+                <input pInputText [(ngModel)]="editForm.phone" placeholder="Ej: 70012345" />
             </div>
         </div>
         <div class="flex flex-col gap-1">
-            <label class="font-medium text-sm">Teléfono</label>
-            <input pInputText [(ngModel)]="editForm.telefono" placeholder="Ej: 70012345" />
+            <label class="font-medium text-sm">Roles</label>
+            <p-multiselect [options]="rolesOptions" [(ngModel)]="editForm.roles"
+                placeholder="Seleccionar roles" appendTo="body" styleClass="w-full" />
         </div>
     </div>
 
     <ng-template #footer>
         <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary" (onClick)="editarVisible = false" />
         <p-button label="Guardar cambios" icon="pi pi-check" (onClick)="guardarEdicion()" />
-    </ng-template>
-</p-dialog>
-
-<!-- Dialog roles -->
-<p-dialog [(visible)]="rolesVisible"
-    [header]="'Roles de ' + (usuarioRoles?.nombres ?? '') + ' ' + (usuarioRoles?.apellidos ?? '')"
-    [modal]="true" [style]="{width: '420px'}" [draggable]="false">
-
-    <div class="flex flex-col gap-3 pt-2">
-        <p class="text-surface-500 text-sm m-0">Usuario: {{ usuarioRoles?.correo }}</p>
-        <p class="text-surface-500 text-xs m-0">Roles actuales: {{ (usuarioRoles?.roles ?? []).join(', ') || 'Sin roles' }}</p>
-        <div class="flex flex-col gap-1 mt-2">
-            <label class="font-medium text-sm">Agregar rol</label>
-            <p-select [options]="rolesOptions" [(ngModel)]="rolSeleccionado"
-                placeholder="Seleccionar rol" appendTo="body" />
-        </div>
-    </div>
-
-    <ng-template #footer>
-        <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary" (onClick)="rolesVisible = false" />
-        <p-button label="Asignar Rol" icon="pi pi-check" (onClick)="guardarRoles()" />
     </ng-template>
 </p-dialog>

@@ -55,7 +55,7 @@ import { Subscription } from 'rxjs';
                     <div class="layout-topbar-menu-content">
                         <button type="button" class="layout-topbar-action" (click)="userMenu.toggle($event)">
                             <i class="pi pi-user"></i>
-                            <span>{{ usuario?.username || 'Perfil' }}</span>
+                            <span>{{ usuario?.email || 'Perfil' }}</span>
                         </button>
                     </div>
                 </div>
@@ -86,7 +86,7 @@ export class AppTopbar implements OnInit, OnDestroy {
     private buildUserMenu(user: CurrentUser | null): void {
         const isAdmin = user?.roles.includes('ADMIN') ?? false;
         this.userMenuItems = [
-            ...(user ? [{ label: user.fullName || user.username, disabled: true, styleClass: 'text-xs' }] : []),
+            ...(user ? [{ label: user.fullName || user.email, disabled: true, styleClass: 'text-xs' }] : []),
             ...(isAdmin ? [{ label: 'Administrador', disabled: true, styleClass: 'text-xs text-primary' }] : []),
             { separator: true },
             { label: 'Mi perfil', icon: 'pi pi-user', command: () => this.router.navigate([isAdmin ? '/admin/perfil' : '/perfil']) },

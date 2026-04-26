@@ -1,41 +1,38 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { ApiResponse } from '../models/api-response.model';
-import {
-    UsuarioResponse,
-    CrearUsuarioRequest,
-    ActualizarUsuarioRequest,
-    AsignarRolRequest,
-} from '../models/sia.models';
+import { UserResponse, RegisterRequest, UpdateUserRequest } from '../models/wf.models';
 
 @Injectable({ providedIn: 'root' })
 export class UsuarioService {
     private http = inject(HttpClient);
     private base = environment.api.baseUrl;
 
-    listar(): Observable<ApiResponse<UsuarioResponse[]>> {
-        return this.http.get<ApiResponse<UsuarioResponse[]>>(`${this.base}/usuarios`);
+    listar(page = 0, size = 50): Observable<any> {
+        const params = new HttpParams().set('page', page).set('size', size);
+        return this.http.get<any>(`${this.base}/users`, { params });
     }
 
-    obtener(id: string): Observable<ApiResponse<UsuarioResponse>> {
-        return this.http.get<ApiResponse<UsuarioResponse>>(`${this.base}/usuarios/${id}`);
+    obtener(id: number): Observable<UserResponse> {
+        return this.http.get<UserResponse>(`${this.base}/users/${id}`);
     }
 
-    crear(body: CrearUsuarioRequest): Observable<ApiResponse<UsuarioResponse>> {
-        return this.http.post<ApiResponse<UsuarioResponse>>(`${this.base}/auth/register`, body);
+    crear(body: RegisterRequest): Observable<UserResponse> {
+        return this.http.post<UserResponse>(`${this.base}/auth/register`, body);
     }
 
-    actualizar(id: string, body: ActualizarUsuarioRequest): Observable<ApiResponse<UsuarioResponse>> {
-        return this.http.put<ApiResponse<UsuarioResponse>>(`${this.base}/usuarios/${id}`, body);
+    actualizar(id: number, body: UpdateUserRequest): Observable<UserResponse> {
+        return this.http.put<UserResponse>(`${this.base}/users/${id}`, body);
     }
 
-    eliminar(id: string): Observable<ApiResponse<void>> {
-        return this.http.delete<ApiResponse<void>>(`${this.base}/usuarios/${id}`);
+    cambiarEstado(id: number, active: boolean): Observable<UserResponse> {
+        return this.http.patch<UserResponse>(`${this.base}/users/${id}/status`, null, {
+            params: new HttpParams().set('active', active)
+        });
     }
 
-    asignarRol(id: string, body: AsignarRolRequest): Observable<ApiResponse<UsuarioResponse>> {
-        return this.http.post<ApiResponse<UsuarioResponse>>(`${this.base}/usuarios/${id}/roles`, body);
+    eliminar(id: number): Observable<void> {
+        return this.http.delete<void>(`${this.base}/users/${id}`);
     }
 }

@@ -117,9 +117,9 @@ import { StyleClassModule } from 'primeng/styleclass';
 
                     <div class="flex flex-col gap-5">
                         <p-floatlabel variant="on">
-                            <input pInputText id="username" type="text" class="w-full" autocomplete="username"
-                                   [(ngModel)]="username" (keyup.enter)="onLogin()" />
-                            <label for="username">Usuario</label>
+                            <input pInputText id="email" type="email" class="w-full" autocomplete="email"
+                                   [(ngModel)]="email" (keyup.enter)="onLogin()" />
+                            <label for="email">Correo electrónico</label>
                         </p-floatlabel>
 
                         <p-floatlabel variant="on">
@@ -153,7 +153,7 @@ export class Login implements OnInit {
     private messageService = inject(MessageService);
     layoutService = inject(LayoutService);
 
-    username = '';
+    email = '';
     password = '';
     loading = false;
     sessionExpired = false;
@@ -168,13 +168,13 @@ export class Login implements OnInit {
     }
 
     onLogin(): void {
-        if (!this.username || !this.password) {
-            this.errorMessage = 'Ingrese usuario y contraseña';
+        if (!this.email || !this.password) {
+            this.errorMessage = 'Ingrese correo y contraseña';
             return;
         }
         this.loading = true;
         this.errorMessage = '';
-        this.authService.login(this.username, this.password).subscribe({
+        this.authService.login(this.email, this.password).subscribe({
             next: (res) => {
                 this.loading = false;
                 const user = this.authService.getCurrentUser();

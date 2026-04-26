@@ -21,8 +21,8 @@ export class AuthService {
     private readonly TOKEN_KEY = environment.auth.tokenKey;
     private readonly USER_KEY = environment.auth.userKey;
 
-    login(username: string, password: string): Observable<LoginResponse> {
-        const body: LoginRequest = { username, password };
+    login(email: string, password: string): Observable<LoginResponse> {
+        const body: LoginRequest = { email, password };
         return this.http.post<LoginResponse>(`${this.apiUrl}/auth/login`, body).pipe(
             tap((response) => {
                 sessionStorage.setItem(this.TOKEN_KEY, response.token);
@@ -108,9 +108,8 @@ export class AuthService {
         const payload = this.getTokenPayload(response.token);
         return {
             id: response.userId,
-            username: response.username,
-            email: payload?.email ?? '',
-            fullName: payload?.fullName ?? response.username,
+            email: response.email,
+            fullName: response.fullName,
             roles: response.roles,
             organizationId: payload?.organizationId ?? undefined,
         };

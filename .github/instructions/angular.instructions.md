@@ -20,14 +20,20 @@ No inventes URLs ni contratos. Si un endpoint no está en `API.md`, no existe to
 
 ---
 
-## Sincronización con cambios en la API
+## Sincronización con cambios en la API — OBLIGATORIA
 
-Cuando `API.md` sea actualizado por el backend (Spring Boot) — identifica entradas con ⚠️ **Cambio** — debes:
+**Al inicio de cada tarea**, antes de escribir cualquier código:
 
-1. Identificar qué endpoints cambiaron (ruta, método, body o response).
-2. Actualizar el servicio Angular correspondiente en `src/app/core/services/`.
-3. Actualizar los DTOs/interfaces en `src/app/core/models/`.
-4. Si cambió la ruta o el método, actualizar todos los componentes que usan ese servicio.
+1. Lee `.github/API.md` completo (está un nivel arriba de este repositorio: `../../.github/API.md`).
+2. Busca todas las entradas que contengan `⚠️ **Cambio:**`.
+3. Para cada cambio encontrado, verifica si el servicio Angular, modelo TypeScript o componente afectado ya fue actualizado.
+4. Si no fue actualizado, **corrígelo primero** antes de continuar con la tarea principal.
+
+Cambios que más comúnmente requieren acción Angular:
+- Renombrado de campos en request/response → actualizar interfaz TypeScript y usos
+- Nuevos campos requeridos en request body → actualizar formularios y DTOs
+- Rutas o métodos HTTP cambiados → actualizar llamadas en el servicio
+- Nuevos endpoints → agregar método al servicio correspondiente
 
 ---
 
@@ -50,6 +56,14 @@ git add .
 git commit -m "feat(frontend): <descripción breve de lo implementado>"
 git push
 ```
+
+### 3. Actualizar PLANNING.md
+
+Después del commit, marca como completadas (`- [x]`) las tareas que hayas terminado en `.github/PLANNING.md` (está en `../../.github/PLANNING.md` relativo a este repo).
+
+- Solo marca las tareas que efectivamente completaste en esta sesión.
+- No marques tareas que no tocaste.
+- No crees ni elimines secciones — solo cambia `[ ]` por `[x]`.
 
 ---
 
