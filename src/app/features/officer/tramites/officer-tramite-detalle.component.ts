@@ -11,6 +11,7 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { DividerModule } from 'primeng/divider';
 import { ProcedureService } from './tramites.service';
 import { ProcedureResponse, ProcedureHistory } from './tramite.model';
+import { ChatPanelComponent } from '../../../shared/components/chat-panel/chat-panel.component';
 
 @Component({
     selector: 'app-officer-tramite-detalle',
@@ -18,6 +19,7 @@ import { ProcedureResponse, ProcedureHistory } from './tramite.model';
     imports: [
         CommonModule, ToastModule, ButtonModule, CardModule, TagModule,
         TimelineModule, ProgressSpinnerModule, DividerModule, DatePipe,
+        ChatPanelComponent,
     ],
     providers: [MessageService],
     templateUrl: './officer-tramite-detalle.component.html',

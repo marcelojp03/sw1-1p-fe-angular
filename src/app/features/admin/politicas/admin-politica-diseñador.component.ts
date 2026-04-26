@@ -18,6 +18,8 @@ import { TooltipModule } from 'primeng/tooltip';
 import { DialogModule } from 'primeng/dialog';
 import { CheckboxModule } from 'primeng/checkbox';
 import * as joint from 'jointjs';
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
 import { PoliticaService } from './politicas.service';
 import { AuthService } from '../../../core/services/auth.service';
 import {
@@ -28,6 +30,8 @@ import { AiPoliticaService } from './ai-politica.service';
 import {
     NodeSuggestion, TransitionSuggestion, FieldSuggestion,
 } from './ai-politica.model';
+import { DiagramPatchMessage } from '../../../shared/models/chat.model';
+import { environment } from '../../../../environments/environment';
 
 interface NodeDef { type: NodeType; label: string; icon: string; color: string; shape: string; }
 interface SelectedNodeData {
@@ -111,6 +115,9 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
     private graph!: joint.dia.Graph;
     private paper!: joint.dia.Paper;
     private policyId!: number;
+    private stompClient?: Client;
+    private wsUrl = environment.api.baseUrl.replace('/api', '') + '/ws';
+    private isReceivingPatch = false;
 
     nodeDefs: NodeDef[] = [
         { type: 'START',          label: 'Inicio',          icon: 'pi-play',      color: '#000',    shape: 'circle'  },
@@ -130,10 +137,14 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
             next: (p) => { this.politica.set(p); this.loading.set(false); this.cdr.detectChanges(); setTimeout(() => this.initCanvas(p), 0); },
             error: () => { this.loading.set(false); this.message.add({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar la política' }); },
         });
+        this.conectarDiagramaWS();
     }
 
     ngAfterViewInit(): void { /* canvas initialized after data loads */ }
-    ngOnDestroy(): void { if (this.paper) { (this.paper as any).remove?.(); } }
+    ngOnDestroy(): void {
+        if (this.paper) { (this.paper as any).remove?.(); }
+        this.stompClient?.deactivate();
+    }
 
     private initCanvas(p: PolicyResponse): void {
         if (!this.canvasEl?.nativeElement) return;
@@ -399,12 +410,43 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
                 this.saving.set(false);
                 this.politica.set(p);
                 this.message.add({ severity: 'success', summary: 'Guardado', detail: 'Diagrama guardado correctamente' });
+                if (this.stompClient?.connected && !this.isReceivingPatch) {
+                    const patch: DiagramPatchMessage = {
+                        policyId: String(this.policyId),
+                        senderUserId: String(this.auth.currentUserSignal()?.id ?? ''),
+                        cells: diagram.cells ?? [],
+                        sentAt: new Date().toISOString(),
+                    };
+                    this.stompClient.publish({
+                        destination: `/app/diagram/${this.policyId}`,
+                        body: JSON.stringify(patch),
+                    });
+                }
             },
             error: () => {
                 this.saving.set(false);
                 this.message.add({ severity: 'error', summary: 'Error', detail: 'No se pudo guardar el diagrama' });
             },
         });
+    }
+
+    private conectarDiagramaWS(): void {
+        this.stompClient = new Client({
+            webSocketFactory: () => new SockJS(this.wsUrl) as any,
+            reconnectDelay: 5000,
+            onConnect: () => {
+                this.stompClient!.subscribe(`/topic/diagram/${this.policyId}`, (frame) => {
+                    const patch: DiagramPatchMessage = JSON.parse(frame.body);
+                    const currentUserId = String(this.auth.currentUserSignal()?.id ?? '');
+                    if (patch.senderUserId === currentUserId) return;
+                    if (!this.graph || !patch.cells?.length) return;
+                    this.isReceivingPatch = true;
+                    this.graph.fromJSON({ cells: patch.cells });
+                    this.isReceivingPatch = false;
+                });
+            },
+        });
+        this.stompClient.activate();
     }
 
     private get orgId(): number {

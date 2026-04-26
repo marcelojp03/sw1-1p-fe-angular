@@ -97,6 +97,14 @@
             </p-card>
           </div>
         </div>
+
+        @if (tramite()) {
+          <div class="mt-4">
+            <p-card header="Chat del trámite">
+              <app-chat-panel [procedureId]="tramite()!.id.toString()" />
+            </p-card>
+          </div>
+        }
       }
     </div>
     

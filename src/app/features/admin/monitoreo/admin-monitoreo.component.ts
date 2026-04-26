@@ -8,11 +8,14 @@ import { TagModule } from 'primeng/tag';
 import { TableModule } from 'primeng/table';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { CardModule } from 'primeng/card';
+import { DialogModule } from 'primeng/dialog';
+import { TooltipModule } from 'primeng/tooltip';
 import { ProcedureService } from '../../officer/tramites/tramites.service';
 import { ProcedureSummaryResponse } from '../../officer/tramites/tramite.model';
 import { AuthService } from '../../../core/services/auth.service';
 import { DashboardService } from '../dashboard/dashboard.service';
 import { TaskOverdueItem } from '../dashboard/dashboard.model';
+import { ChatPanelComponent } from '../../../shared/components/chat-panel/chat-panel.component';
 
 @Component({
     selector: 'app-admin-monitoreo',
@@ -20,6 +23,7 @@ import { TaskOverdueItem } from '../dashboard/dashboard.model';
     imports: [
         CommonModule, ToastModule, ButtonModule, TagModule,
         TableModule, ProgressSpinnerModule, CardModule,
+        DialogModule, TooltipModule, ChatPanelComponent,
     ],
     providers: [MessageService],
     templateUrl: './admin-monitoreo.component.html',
@@ -36,6 +40,13 @@ export class AdminMonitoreoComponent implements OnInit {
     selectedStatus = signal<string>('');
     overdueTasks = signal<TaskOverdueItem[]>([]);
     overdueLoading = signal(false);
+    chatVisible = signal(false);
+    selectedProcedureId = signal<string | null>(null);
+
+    abrirChat(id: number | string): void {
+        this.selectedProcedureId.set(String(id));
+        this.chatVisible.set(true);
+    }
 
     ngOnInit(): void {
         this.cargar();

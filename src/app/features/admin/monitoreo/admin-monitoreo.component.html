@@ -52,9 +52,12 @@
               </td>
               <td class="text-sm">{{ t.currentNodeIds?.length ?? 0 }}</td>
               <td class="text-sm text-surface-500">{{ t.createdAt | date:'dd/MM/yyyy HH:mm' }}</td>
-              <td>
+              <td class="flex gap-1">
                 <p-button label="Ver" icon="pi pi-eye" size="small" [outlined]="true"
                   (onClick)="irDetalle(t.id)" />
+                <p-button icon="pi pi-comments" size="small" severity="info" [text]="true"
+                  pTooltip="Ver chat" tooltipPosition="top"
+                  (onClick)="abrirChat(t.id)" />
               </td>
             </tr>
           </ng-template>
@@ -113,4 +116,12 @@
         </p-card>
       </div>
     </div>
+
+    <p-dialog header="Chat del trámite"
+      [visible]="chatVisible()" (visibleChange)="chatVisible.set($event)"
+      [modal]="true" [style]="{'width': '480px'}" [draggable]="false">
+      @if (selectedProcedureId()) {
+        <app-chat-panel [procedureId]="selectedProcedureId()!" />
+      }
+    </p-dialog>
     
