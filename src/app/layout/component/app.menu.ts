@@ -7,16 +7,7 @@ import { MenuService } from '@/core/services/menu.service';
     selector: 'app-menu',
     standalone: true,
     imports: [AppMenuitem, RouterModule],
-    template: `<ul class="layout-menu">
-        @for (item of menuService.items(); track item; let i = $index) {
-            @if (!item.separator) {
-                <li app-menuitem [item]="item" [index]="i" [root]="true"></li>
-            }
-            @if (item.separator) {
-                <li class="menu-separator"></li>
-            }
-        }
-    </ul>`
+    templateUrl: './app.menu.html'
 })
 export class AppMenu {
     readonly menuService = inject(MenuService);

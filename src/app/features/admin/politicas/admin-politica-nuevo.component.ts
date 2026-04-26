@@ -20,73 +20,7 @@ import { CreatePolicyRequest } from './politica.model';
         TextareaModule, CardModule, MultiSelectModule,
     ],
     providers: [MessageService],
-    template: `
-    <div class="p-4 max-w-2xl mx-auto">
-      <p-toast />
-
-      <div class="mb-4 flex items-center gap-2">
-        <p-button
-          icon="pi pi-arrow-left"
-          label="Volver"
-          severity="secondary"
-          [text]="true"
-          (onClick)="router.navigate(['/admin/politicas'])"
-        />
-        <h2 class="text-xl font-semibold m-0">Nueva Política</h2>
-      </div>
-
-      <p-card>
-        <div class="flex flex-col gap-4">
-          <div class="flex flex-col gap-1">
-            <label class="font-medium">Clave única <span class="text-red-500">*</span></label>
-            <input pInputText [(ngModel)]="form.policyKey"
-              placeholder="ej: solicitud_credito" class="w-full" />
-            <small class="text-surface-400">Solo letras, números y guiones bajos. No se puede cambiar.</small>
-          </div>
-
-          <div class="flex flex-col gap-1">
-            <label class="font-medium">Nombre <span class="text-red-500">*</span></label>
-            <input pInputText [(ngModel)]="form.name"
-              placeholder="ej: Solicitud de Crédito" class="w-full" />
-          </div>
-
-          <div class="flex flex-col gap-1">
-            <label class="font-medium">Descripción</label>
-            <textarea pTextarea [(ngModel)]="form.description"
-              rows="3" class="w-full" placeholder="Descripción de la política..."></textarea>
-          </div>
-
-          <div class="flex flex-col gap-1">
-            <label class="font-medium">Canales de inicio</label>
-            <p-multiselect
-              [(ngModel)]="form.allowedStartChannels"
-              [options]="channels"
-              optionLabel="label"
-              optionValue="value"
-              placeholder="Seleccionar canales"
-              class="w-full"
-            />
-          </div>
-
-          <div class="flex justify-end gap-2 mt-2">
-            <p-button
-              label="Cancelar"
-              severity="secondary"
-              [outlined]="true"
-              (onClick)="router.navigate(['/admin/politicas'])"
-            />
-            <p-button
-              label="Crear y Diseñar"
-              icon="pi pi-sitemap"
-              [loading]="saving()"
-              [disabled]="!form.policyKey || !form.name"
-              (onClick)="crear()"
-            />
-          </div>
-        </div>
-      </p-card>
-    </div>
-    `,
+    templateUrl: './admin-politica-nuevo.component.html',
 })
 export class AdminPoliticaNuevoComponent {
     private politicaService = inject(PoliticaService);

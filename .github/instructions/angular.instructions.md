@@ -80,7 +80,58 @@ Después del commit, marca como completadas (`- [x]`) las tareas que hayas termi
 
 ---
 
-## Referencias
+### Separación de template y lógica — OBLIGATORIA
+
+**Nunca uses `template: \`...\`` inline en un componente.**
+
+Cada componente debe tener su propio archivo `.html`:
+
+```
+organizacion.component.ts    ← lógica, signals, inyección
+organizacion.component.html  ← template HTML
+```
+
+En el decorador `@Component`, usa siempre:
+
+```typescript
+@Component({
+  selector: 'app-nombre',
+  standalone: true,
+  templateUrl: './nombre.component.html',
+  // styleUrl: './nombre.component.css'  ← solo si necesitas CSS específico
+  imports: [...],
+})
+```
+
+**Reglas:**
+- `templateUrl` siempre apunta a un archivo `.html` del mismo directorio.
+- No uses `styleUrl` si TailwindCSS cubre todos los estilos (clases inline en el HTML).
+- Si el HTML supera 10 líneas, es obligatorio separarlo. No hay excepciones.
+- Los archivos `.html` y `.ts` deben tener el mismo nombre base: `foo.component.ts` + `foo.component.html`.
+- Esto aplica también a componentes en `shared/components/`.
+
+---
+
+### Estrategia Smart / Dumb Components
+
+- **Smart (container):** gestiona datos, inyecta servicios, maneja estado. Corresponde a los componentes de página (los que están en la ruta).
+- **Dumb (presentational):** recibe datos por `@Input()`, emite eventos por `@Output()`. No inyecta servicios HTTP. Vive en `shared/components/` o en una subcarpeta `components/` dentro del feature.
+
+---
+
+### Detección de cambios
+
+- Usa `ChangeDetectionStrategy.OnPush` en todos los componentes nuevos.
+- Con `OnPush`, el template solo se actualiza cuando cambia una señal (`signal`) o un `@Input()`. Compatible con `signal()` de Angular 17+.
+
+```typescript
+@Component({
+  ...,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+```
+
+---
 
 - Plan general: `.github/PLANNING.md` (workspace raíz)
 - Detalles técnicos Angular: `.github/ANGULAR.md` (workspace raíz)

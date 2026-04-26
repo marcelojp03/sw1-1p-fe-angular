@@ -1,0 +1,285 @@
+    <div class="flex flex-col h-full">
+      <p-toast />
+
+      <!-- Toolbar -->
+      <div class="flex items-center justify-between px-4 py-3 bg-surface-0 border-b border-surface-200">
+        <div class="flex items-center gap-3">
+          <p-button icon="pi pi-arrow-left" severity="secondary" [text]="true"
+            (onClick)="router.navigate(['/admin/politicas'])" />
+          @if (politica()) {
+            <div>
+              <span class="font-semibold">{{ politica()!.name }}</span>
+              <span class="text-surface-400 text-sm ml-2">v{{ politica()!.version }}</span>
+              <p-tag class="ml-2" [value]="politica()!.status"
+                [severity]="politica()!.status === 'PUBLISHED' ? 'success' : politica()!.status === 'DRAFT' ? 'warn' : 'secondary'" />
+            </div>
+          }
+        </div>
+        <div class="flex items-center gap-2">
+          <p-button
+            [label]="linkMode() ? 'Modo: Conectar' : 'Modo: Mover'"
+            [icon]="linkMode() ? 'pi pi-arrows-h' : 'pi pi-arrows-alt'"
+            [severity]="linkMode() ? 'warn' : 'secondary'"
+            size="small"
+            [outlined]="true"
+            (onClick)="toggleLinkMode()"
+            pTooltip="Cambiar entre modo mover y modo conectar"
+          />
+          <p-button label="Guardar" icon="pi pi-save" size="small" [loading]="saving()"
+            (onClick)="guardar()" />
+          <p-button
+            label="Sugerir con IA"
+            icon="pi pi-sparkles"
+            size="small"
+            severity="secondary"
+            [outlined]="true"
+            [loading]="aiLoading()"
+            pTooltip="Sugerir nodos con Inteligencia Artificial"
+            (onClick)="abrirDialogoAI()"
+          />
+          @if (politica()?.status === 'DRAFT') {
+            <p-button label="Publicar" icon="pi pi-send" size="small" severity="success"
+              [loading]="publishing()" (onClick)="publicar()" />
+          }
+        </div>
+      </div>
+
+      @if (loading()) {
+        <div class="flex justify-center items-center flex-1">
+          <p-progressspinner />
+        </div>
+      }
+
+      @if (!loading()) {
+        <!-- Designer layout -->
+        <div class="flex flex-1 overflow-hidden">
+
+          <!-- Left: Palette -->
+          <div class="w-52 flex-shrink-0 overflow-y-auto bg-surface-50 border-r border-surface-200 p-3">
+            <p class="text-xs font-semibold text-surface-400 uppercase mb-3">Nodos</p>
+            <div class="flex flex-col gap-2">
+              @for (nd of nodeDefs; track nd.type) {
+                <button class="palette-btn" (click)="addNode(nd)">
+                  @switch (nd.shape) {
+                    @case ('circle') { <span class="dot" [style.background]="nd.color"></span> }
+                    @case ('diamond') { <span class="diamond" [style.background]="nd.color"></span> }
+                    @case ('bar') { <span class="bar" [style.background]="nd.color"></span> }
+                    @default { <span class="sq" [style.background]="nd.color"></span> }
+                  }
+                  <span>{{ nd.label }}</span>
+                </button>
+              }
+            </div>
+            <p-divider />
+            <p class="text-xs font-semibold text-surface-400 uppercase mb-2">Ayuda</p>
+            <p class="text-xs text-surface-400 leading-relaxed">
+              Haz clic en un tipo para agregar al canvas.<br/>
+              En <strong>modo conectar</strong>, arrastra desde un nodo origen al nodo destino.<br/>
+              Selecciona un nodo para editar sus propiedades.
+            </p>
+          </div>
+
+          <!-- Center: Canvas -->
+          <div class="flex-1 overflow-auto canvas-wrapper" [class.link-mode]="linkMode()">
+            <div #canvas id="joint-canvas"></div>
+          </div>
+
+          <!-- Right: Properties -->
+          <div class="w-72 flex-shrink-0 overflow-y-auto bg-surface-50 border-l border-surface-200 p-3">
+            @if (selected()) {
+              <p class="text-xs font-semibold text-surface-400 uppercase mb-3">Propiedades del Nodo</p>
+
+              <div class="flex flex-col gap-3">
+                <div>
+                  <label class="text-xs font-medium text-surface-500 block mb-1">Tipo</label>
+                  <p-tag [value]="selected()!.nodeType" severity="info" />
+                </div>
+
+                <div>
+                  <label class="text-xs font-medium text-surface-500 block mb-1">Etiqueta</label>
+                  <input pInputText [(ngModel)]="selected()!.label" class="w-full text-sm"
+                    (ngModelChange)="updateLabel($event)" />
+                </div>
+
+                @if (!['START','END','PARALLEL_SPLIT','PARALLEL_JOIN'].includes(selected()!.nodeType)) {
+                  <div>
+                    <label class="text-xs font-medium text-surface-500 block mb-1">Área asignada (ID)</label>
+                    <p-inputnumber [(ngModel)]="selected()!.assignedAreaId"
+                      [min]="1" class="w-full" inputStyleClass="w-full text-sm" />
+                  </div>
+                  <div>
+                    <label class="text-xs font-medium text-surface-500 block mb-1">Tiempo estimado (min)</label>
+                    <p-inputnumber [(ngModel)]="selected()!.estimatedMinutes"
+                      [min]="1" class="w-full" inputStyleClass="w-full text-sm" />
+                  </div>
+                }
+
+                @if (selected()!.nodeType === 'CONDITION') {
+                  <div>
+                    <label class="text-xs font-medium text-surface-500 block mb-1">Condición (expresión)</label>
+                    <input pInputText [(ngModel)]="selected()!.condition" class="w-full text-sm"
+                      placeholder="ej: amount > 1000" />
+                  </div>
+                }
+
+                @if (['MANUAL_FORM','CLIENT_TASK'].includes(selected()!.nodeType)) {
+                  <p-divider />
+                  <p class="text-xs font-semibold text-surface-400 uppercase mb-2">Definición de Formulario</p>
+                  @if (selected()!.formFields.length === 0) {
+                    <p class="text-xs text-surface-400 mb-2">Sin campos definidos.</p>
+                  }
+                  @for (field of selected()!.formFields; track field.name; let i = $index) {
+                    <div class="flex items-center justify-between text-xs bg-white border border-surface-200 rounded px-2 py-1 mb-1 gap-1">
+                      <span class="font-medium truncate flex-1 min-w-0" [title]="field.label">{{ field.label }}</span>
+                      <span class="text-surface-400 text-[10px] shrink-0">{{ field.type }}</span>
+                      <p-button icon="pi pi-times" [text]="true" severity="danger" size="small"
+                        (onClick)="removeFormField(i)" />
+                    </div>
+                  }
+                  <p-button label="+ Agregar campo" size="small" [outlined]="true" styleClass="w-full mt-1"
+                    (onClick)="openFormFieldDialog()" />
+                  <p-button
+                    label="Sugerir con IA"
+                    icon="pi pi-sparkles"
+                    size="small"
+                    severity="info"
+                    [outlined]="true"
+                    [loading]="aiFieldsLoading()"
+                    styleClass="w-full mt-1"
+                    (onClick)="sugerirCamposIA()"
+                  />
+                }
+
+                <p-button label="Eliminar nodo" icon="pi pi-trash" severity="danger"
+                  size="small" [outlined]="true" class="w-full" (onClick)="deleteSelected()" />
+              </div>
+            } @else if (selectedLink()) {
+              <p class="text-xs font-semibold text-surface-400 uppercase mb-3">Propiedades de Transición</p>
+              <div class="flex flex-col gap-3">
+                <div>
+                  <label class="text-xs font-medium text-surface-500 block mb-1">Etiqueta</label>
+                  <input pInputText [ngModel]="selectedLink()!.label" class="w-full text-sm"
+                    (ngModelChange)="updateLinkLabel($event)" placeholder="ej: Aprobado" />
+                </div>
+                <div>
+                  <label class="text-xs font-medium text-surface-500 block mb-1">Condición</label>
+                  <input pInputText [ngModel]="selectedLink()!.condition" class="w-full text-sm"
+                    (ngModelChange)="updateLinkCondition($event)" placeholder="ej: amount > 1000" />
+                </div>
+                <p-button label="Eliminar transición" icon="pi pi-trash" severity="danger"
+                  size="small" [outlined]="true" class="w-full" (onClick)="deleteSelectedLink()" />
+              </div>
+            } @else {
+              <div class="flex flex-col items-center justify-center h-40 text-surface-400 text-sm text-center">
+                <i class="pi pi-mouse text-2xl mb-2"></i>
+                Selecciona un nodo o transición para editar
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- Dialog: agregar campo de formulario -->
+      <p-dialog header="Agregar campo al formulario" [modal]="true" [(visible)]="formDialogVisible"
+        [style]="{width: '420px'}" [closable]="true">
+        <div class="flex flex-col gap-3 pt-2">
+          <div>
+            <label class="text-xs font-medium text-surface-500 block mb-1">Nombre (clave, sin espacios)</label>
+            <input pInputText [(ngModel)]="newField.name" class="w-full text-sm" placeholder="ej: amount" />
+          </div>
+          <div>
+            <label class="text-xs font-medium text-surface-500 block mb-1">Etiqueta visible</label>
+            <input pInputText [(ngModel)]="newField.label" class="w-full text-sm" placeholder="ej: Monto" />
+          </div>
+          <div>
+            <label class="text-xs font-medium text-surface-500 block mb-1">Tipo de campo</label>
+            <p-select [(ngModel)]="newField.type" [options]="fieldTypes"
+              optionLabel="label" optionValue="value" styleClass="w-full" />
+          </div>
+          <div class="flex items-center gap-2">
+            <p-checkbox [(ngModel)]="newField.required" [binary]="true" inputId="req" />
+            <label for="req" class="text-sm">Requerido</label>
+          </div>
+          @if (newField.type === 'SELECT') {
+            <div>
+              <label class="text-xs font-medium text-surface-500 block mb-1">Opciones (separar con coma)</label>
+              <input pInputText [(ngModel)]="newField.optionsStr" class="w-full text-sm"
+                placeholder="ej: Opción A, Opción B" />
+            </div>
+          }
+        </div>
+        <ng-template #footer>
+          <div class="flex justify-end gap-2 pt-2">
+            <p-button label="Cancelar" severity="secondary" [outlined]="true" size="small"
+              (onClick)="formDialogVisible = false" />
+            <p-button label="Agregar" size="small" (onClick)="saveNewFormField()" />
+          </div>
+        </ng-template>
+      </p-dialog>
+
+      <!-- Dialog: sugerencias de workflow IA -->
+      <p-dialog header="Sugerencias de nodos (IA)" [(visible)]="aiDialogVisible"
+        [style]="{ width: '80vw', maxWidth: '900px' }" [modal]="true" [draggable]="false">
+        @if (aiLoading()) {
+          <div class="flex justify-center items-center py-8"><p-progressspinner /></div>
+        }
+        @if (!aiLoading() && aiSuggestions().length > 0) {
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+            @for (s of aiSuggestions(); track s.label) {
+              <div class="border border-surface-200 rounded p-3 bg-surface-50">
+                <div class="flex items-center gap-2 mb-1">
+                  <p-tag [value]="s.type" severity="info" />
+                  <span class="font-semibold text-sm">{{ s.label }}</span>
+                </div>
+                <p class="text-xs text-surface-500 mb-2">{{ s.description }}</p>
+                @if (s.suggestedArea) {
+                  <p class="text-xs text-surface-400">Área: {{ s.suggestedArea }}</p>
+                }
+                <p-button label="Agregar al diagrama" icon="pi pi-plus" size="small"
+                  (onClick)="agregarNodoDesdeIA(s)" />
+              </div>
+            }
+          </div>
+          @if (aiTransitions().length > 0) {
+            <p-divider />
+            <p class="text-sm font-semibold mb-2">Transiciones sugeridas</p>
+            <ul class="text-xs text-surface-500 list-disc ml-4">
+              @for (t of aiTransitions(); track t.from + t.to) {
+                <li>{{ t.from }} → {{ t.to }} @if (t.condition) { <span class="italic">({{ t.condition }})</span> }</li>
+              }
+            </ul>
+          }
+        }
+        @if (!aiLoading() && aiSuggestions().length === 0 && aiCalled()) {
+          <p class="text-surface-400 text-sm text-center py-4">La IA no devolvió sugerencias.</p>
+        }
+      </p-dialog>
+
+      <!-- Dialog: sugerencias de campos IA -->
+      <p-dialog header="Campos sugeridos por IA" [(visible)]="aiFieldsDialogVisible"
+        [style]="{ width: '60vw', maxWidth: '700px' }" [modal]="true" [draggable]="false">
+        @if (aiFieldsLoading()) {
+          <div class="flex justify-center items-center py-8"><p-progressspinner /></div>
+        }
+        @if (!aiFieldsLoading() && aiFieldSuggestions().length > 0) {
+          <div class="flex flex-col gap-2 mb-4">
+            @for (f of aiFieldSuggestions(); track f.fieldId) {
+              <div class="flex items-center justify-between border border-surface-200 rounded px-3 py-2">
+                <div>
+                  <span class="font-medium text-sm">{{ f.label }}</span>
+                  <span class="text-xs text-surface-400 ml-2">{{ f.type }}</span>
+                  @if (f.required) { <span class="text-xs text-red-400 ml-1">*</span> }
+                  @if (f.description) { <p class="text-xs text-surface-400 mt-0.5">{{ f.description }}</p> }
+                </div>
+                <p-button icon="pi pi-plus" size="small" [text]="true"
+                  pTooltip="Agregar campo" (onClick)="agregarCampoDesdeIA(f)" />
+              </div>
+            }
+          </div>
+        }
+        @if (!aiFieldsLoading() && aiFieldSuggestions().length === 0) {
+          <p class="text-surface-400 text-sm text-center py-4">La IA no devolvió sugerencias de campos.</p>
+        }
+      </p-dialog>
+    </div>
+    

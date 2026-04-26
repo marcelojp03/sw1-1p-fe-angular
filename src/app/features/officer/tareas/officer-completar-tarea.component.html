@@ -1,0 +1,177 @@
+    <div class="p-4 max-w-3xl mx-auto">
+      <p-toast />
+
+      @if (loading()) {
+        <div class="flex justify-center items-center h-48">
+          <p-progressspinner />
+        </div>
+      }
+
+      @if (!loading() && tarea()) {
+        <div class="mb-4 flex items-center gap-2">
+          <p-button
+            icon="pi pi-arrow-left"
+            label="Volver"
+            severity="secondary"
+            [text]="true"
+            (onClick)="router.navigate(['/officer/tareas'])"
+          />
+          <h2 class="text-xl font-semibold m-0">Completar Tarea</h2>
+        </div>
+
+        <p-card>
+          <ng-template pTemplate="header">
+            <div class="p-4 pb-0">
+              <div class="flex items-start justify-between">
+                <div>
+                  <p class="text-sm text-surface-400 m-0">Trámite {{ tarea()!.procedureCode }}</p>
+                  <h3 class="text-lg font-semibold mt-1 mb-0">{{ tarea()!.label }}</h3>
+                </div>
+                <p-tag [value]="tarea()!.status" [severity]="statusSeverity(tarea()!.status)" />
+              </div>
+            </div>
+          </ng-template>
+
+          @if (fields().length > 0) {
+            <p-divider>
+              <span class="text-sm font-medium text-surface-500">Formulario</span>
+            </p-divider>
+
+            <div class="flex flex-col gap-4">
+              @for (field of fields(); track field.name) {
+                <div class="flex flex-col gap-1">
+                  <label class="text-sm font-medium">
+                    {{ field.label }}
+                    @if (field.required) { <span class="text-red-500">*</span> }
+                  </label>
+
+                  @switch (field.type) {
+                    @case ('TEXT') {
+                      <input
+                        pInputText
+                        [(ngModel)]="formResponse[field.name]"
+                        [placeholder]="field.placeholder ?? ''"
+                        class="w-full"
+                      />
+                    }
+                    @case ('NUMBER') {
+                      <input
+                        pInputText
+                        type="number"
+                        [(ngModel)]="formResponse[field.name]"
+                        [placeholder]="field.placeholder ?? ''"
+                        class="w-full"
+                      />
+                    }
+                    @case ('TEXTAREA') {
+                      <textarea
+                        pTextarea
+                        [(ngModel)]="formResponse[field.name]"
+                        rows="3"
+                        class="w-full"
+                        [placeholder]="field.placeholder ?? ''"
+                      ></textarea>
+                    }
+                    @case ('DATE') {
+                      <p-datepicker
+                        [(ngModel)]="formResponse[field.name]"
+                        dateFormat="dd/mm/yy"
+                        [showIcon]="true"
+                        class="w-full"
+                      />
+                    }
+                    @case ('SELECT') {
+                      <p-select
+                        [(ngModel)]="formResponse[field.name]"
+                        [options]="field.options ?? []"
+                        [placeholder]="'Seleccionar...'"
+                        class="w-full"
+                      />
+                    }
+                    @case ('BOOLEAN') {
+                      <div class="flex items-center gap-2">
+                        <p-checkbox
+                          [(ngModel)]="formResponse[field.name]"
+                          [binary]="true"
+                          [inputId]="'cb_' + field.name"
+                        />
+                        <label [for]="'cb_' + field.name" class="text-sm">{{ field.label }}</label>
+                      </div>
+                    }
+                    @case ('FILE') {
+                      <div class="flex flex-col gap-2">
+                        <input
+                          type="file"
+                          multiple
+                          accept=".jpg,.jpeg,.png,.pdf,.docx,.xlsx"
+                          (change)="onFileChange($event, field.name)"
+                          class="block w-full text-sm text-surface-500 file:mr-4 file:py-2 file:px-4
+                                 file:rounded file:border-0 file:text-sm file:font-medium
+                                 file:bg-primary file:text-white hover:file:bg-primary-600 cursor-pointer"
+                        />
+                        @if (selectedFiles[field.name]?.length) {
+                          <div class="flex flex-wrap gap-1 mt-1">
+                            @for (f of selectedFiles[field.name]; track f.name) {
+                              <span class="inline-flex items-center gap-1 bg-surface-100 text-surface-700 text-xs px-2 py-1 rounded">
+                                <i class="pi pi-file text-xs"></i> {{ f.name }}
+                              </span>
+                            }
+                          </div>
+                        }
+                      </div>
+                    }
+                  }
+                </div>
+              }
+            </div>
+          }
+
+          <p-divider>
+            <span class="text-sm font-medium text-surface-500">Observaciones</span>
+          </p-divider>
+
+          <textarea
+            pTextarea
+            [(ngModel)]="notes"
+            rows="3"
+            class="w-full"
+            placeholder="Notas o comentarios adicionales (opcional)..."
+          ></textarea>
+
+          <!-- Observación hacia cliente -->
+          <div class="flex items-center gap-2 mt-3">
+            <p-checkbox [(ngModel)]="generarObservacion" [binary]="true" inputId="cbObservacion" />
+            <label for="cbObservacion" class="text-sm font-medium cursor-pointer">
+              Generar observación hacia cliente
+            </label>
+          </div>
+          @if (generarObservacion) {
+            <div class="mt-2">
+              <textarea
+                pTextarea
+                [(ngModel)]="observacionTexto"
+                rows="3"
+                class="w-full"
+                placeholder="Describa la observación para el cliente..."
+              ></textarea>
+            </div>
+          }
+
+          <div class="flex justify-end gap-2 mt-4">
+            <p-button
+              label="Cancelar"
+              severity="secondary"
+              [outlined]="true"
+              (onClick)="router.navigate(['/officer/tareas'])"
+            />
+            <p-button
+              label="Completar Tarea"
+              icon="pi pi-check"
+              [loading]="submitting()"
+              (onClick)="submit()"
+            />
+          </div>
+        </p-card>
+      }
+    </div>
+    
