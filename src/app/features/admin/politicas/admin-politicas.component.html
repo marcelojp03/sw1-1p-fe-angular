@@ -1,0 +1,63 @@
+<p-toast />
+<p-confirmdialog />
+
+<div class="card">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h3 class="text-xl font-semibold text-surface-900 dark:text-surface-0 m-0">Políticas de Workflow</h3>
+            <p class="text-surface-400 text-sm mt-1 mb-0">Diseña y gestiona las políticas de tramitación</p>
+        </div>
+        <p-button label="Nueva Política" icon="pi pi-plus" routerLink="/admin/politicas/nuevo" />
+    </div>
+
+    <p-table #dt [value]="politicas()" [loading]="loading" dataKey="id"
+        [globalFilterFields]="['name','policyKey','status']"
+        [paginator]="true" [rows]="10" styleClass="p-datatable-striped">
+
+        <ng-template #caption>
+            <p-iconfield>
+                <p-inputicon class="pi pi-search" />
+                <input pInputText (input)="dt.filterGlobal($any($event.target).value,'contains')" placeholder="Buscar..." />
+            </p-iconfield>
+        </ng-template>
+
+        <ng-template #header>
+            <tr>
+                <th pSortableColumn="policyKey">Clave <p-sortIcon field="policyKey"/></th>
+                <th pSortableColumn="name">Nombre <p-sortIcon field="name"/></th>
+                <th>Versión</th>
+                <th>Estado</th>
+                <th pSortableColumn="updatedAt">Actualizado <p-sortIcon field="updatedAt"/></th>
+                <th style="width:180px">Acciones</th>
+            </tr>
+        </ng-template>
+
+        <ng-template #body let-p>
+            <tr>
+                <td><code>{{ p.policyKey }}</code></td>
+                <td>{{ p.name }}</td>
+                <td>v{{ p.version }}</td>
+                <td><p-tag [value]="p.status" [severity]="statusSeverity(p.status)" /></td>
+                <td>{{ p.updatedAt | date:'dd/MM/yyyy HH:mm' }}</td>
+                <td>
+                    <div class="flex gap-1">
+                        @if (p.status === 'DRAFT') {
+                            <p-button icon="pi pi-pencil" severity="info" [text]="true" size="small"
+                                pTooltip="Diseñar" [routerLink]="['/admin/politicas', p.id, 'editar']" />
+                            <p-button icon="pi pi-send" severity="success" [text]="true" size="small"
+                                pTooltip="Publicar" (onClick)="confirmarPublicar(p)" />
+                        }
+                        @if (p.status === 'PUBLISHED') {
+                            <p-button icon="pi pi-archive" severity="secondary" [text]="true" size="small"
+                                pTooltip="Archivar" (onClick)="confirmarArchivar(p)" />
+                        }
+                    </div>
+                </td>
+            </tr>
+        </ng-template>
+
+        <ng-template #empty>
+            <tr><td colspan="6" class="text-center text-surface-400 py-4">No hay políticas registradas</td></tr>
+        </ng-template>
+    </p-table>
+</div>

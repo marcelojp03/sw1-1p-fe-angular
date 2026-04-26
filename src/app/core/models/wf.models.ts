@@ -236,3 +236,57 @@ export interface NotificationResponse {
     createdAt: string;
     readAt?: string;
 }
+
+// ─── Form Fields (for dynamic task forms) ────────────────────────────────────
+
+export type FieldType = 'TEXT' | 'NUMBER' | 'DATE' | 'SELECT' | 'TEXTAREA' | 'FILE' | 'BOOLEAN';
+
+export interface FormField {
+    name: string;
+    label: string;
+    type: FieldType;
+    required?: boolean;
+    options?: string[];
+    placeholder?: string;
+}
+
+export interface FormDefinition {
+    fields: FormField[];
+}
+
+// ─── Procedure History ────────────────────────────────────────────────────────
+
+export interface ProcedureHistory {
+    id: string;
+    procedureId: string;
+    eventType: string;
+    description?: string;
+    performedBy?: string;
+    nodeId?: string;
+    taskId?: string;
+    createdAt: string;
+}
+
+// ─── Policy Node / Transition (for designer) ─────────────────────────────────
+
+export type NodeType = 'START' | 'MANUAL_FORM' | 'MANUAL_ACTION' | 'CLIENT_TASK'
+    | 'CONDITION' | 'NOTIFICATION' | 'PARALLEL_SPLIT' | 'PARALLEL_JOIN' | 'END';
+
+export interface PolicyNode {
+    id: string;
+    nodeType: NodeType;
+    label: string;
+    assignedAreaId?: number;
+    estimatedMinutes?: number;
+    form?: FormDefinition;
+    position?: { x: number; y: number };
+    size?: { width: number; height: number };
+}
+
+export interface PolicyTransition {
+    id: string;
+    from: string;
+    to: string;
+    label?: string;
+    condition?: string;
+}

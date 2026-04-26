@@ -29,4 +29,10 @@ export class TaskService {
     complete(id: number, body: CompleteTaskRequest): Observable<TaskResponse> {
         return this.http.post<TaskResponse>(`${this.base}/${id}/complete`, body);
     }
+
+    uploadAttachments(id: number, files: File[]): Observable<TaskResponse> {
+        const formData = new FormData();
+        files.forEach(f => formData.append('files', f));
+        return this.http.post<TaskResponse>(`${this.base}/${id}/attachments`, formData);
+    }
 }

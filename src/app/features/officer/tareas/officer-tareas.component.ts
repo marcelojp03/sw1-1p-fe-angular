@@ -1,27 +1,26 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { ToastModule } from 'primeng/toast';
 import { ButtonModule } from 'primeng/button';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { TabsModule } from 'primeng/tabs';
-import { DialogModule } from 'primeng/dialog';
-import { TextareaModule } from 'primeng/textarea';
 import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
 import { InputTextModule } from 'primeng/inputtext';
 import { DatePipe } from '@angular/common';
 import { TaskService } from '../../../core/services/task.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { TaskResponse, CompleteTaskRequest } from '../../../core/models/wf.models';
+import { TaskResponse } from '../../../core/models/wf.models';
 
 @Component({
     selector: 'app-officer-tareas',
     standalone: true,
     imports: [
         FormsModule, ToastModule, ButtonModule, TableModule, TagModule,
-        TabsModule, DialogModule, TextareaModule, IconFieldModule, InputIconModule,
+        TabsModule, IconFieldModule, InputIconModule,
         InputTextModule, DatePipe,
     ],
     providers: [MessageService],
@@ -31,16 +30,11 @@ export class OfficerTareasComponent implements OnInit {
     private taskService = inject(TaskService);
     private auth = inject(AuthService);
     private message = inject(MessageService);
+    private router = inject(Router);
 
     tareasArea = signal<TaskResponse[]>([]);
     tareasMias = signal<TaskResponse[]>([]);
     loading = false;
-
-    // Dialog completar
-    dialogVisible = false;
-    selectedTask: TaskResponse | null = null;
-    notes = '';
-    completing = false;
 
     ngOnInit(): void { this.loadAll(); }
 
@@ -80,27 +74,7 @@ export class OfficerTareasComponent implements OnInit {
     }
 
     abrirCompletar(task: TaskResponse): void {
-        this.selectedTask = task;
-        this.notes = '';
-        this.dialogVisible = true;
-    }
-
-    completar(): void {
-        if (!this.selectedTask) return;
-        this.completing = true;
-        const body: CompleteTaskRequest = { notes: this.notes };
-        this.taskService.complete(this.selectedTask.id, body).subscribe({
-            next: () => {
-                this.completing = false;
-                this.dialogVisible = false;
-                this.message.add({ severity: 'success', summary: 'Completada', detail: 'Tarea completada exitosamente' });
-                this.loadAll();
-            },
-            error: () => {
-                this.completing = false;
-                this.message.add({ severity: 'error', summary: 'Error', detail: 'No se pudo completar la tarea' });
-            }
-        });
+        this.router.navigate(['/officer/tareas', task.id, 'completar']);
     }
 
     statusSeverity(status: string): 'info' | 'success' | 'warn' | 'danger' | 'secondary' {

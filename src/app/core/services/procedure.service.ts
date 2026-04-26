@@ -6,6 +6,7 @@ import {
     ProcedureResponse,
     ProcedureSummaryResponse,
     StartProcedureRequest,
+    ProcedureHistory,
 } from '../models/wf.models';
 
 @Injectable({ providedIn: 'root' })
@@ -27,7 +28,7 @@ export class ProcedureService {
         return this.http.post<ProcedureResponse>(this.base, body);
     }
 
-    getHistory(id: number): Observable<any[]> {
-        return this.http.get<any[]>(`${this.base}/${id}/history`);
+    getHistory(id: number): Observable<ProcedureHistory[]> {
+        return this.http.get<ProcedureHistory[]>(`${this.base}/${id}/history`);
     }
 }

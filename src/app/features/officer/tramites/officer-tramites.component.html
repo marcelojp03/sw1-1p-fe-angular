@@ -27,6 +27,7 @@
                 <th>Política</th>
                 <th>Estado</th>
                 <th pSortableColumn="createdAt">Fecha <p-sortIcon field="createdAt"/></th>
+                <th style="width:80px">Detalle</th>
             </tr>
         </ng-template>
 
@@ -36,6 +37,10 @@
                 <td>{{ t.policyName }}</td>
                 <td><p-tag [value]="t.status" [severity]="statusSeverity(t.status)" /></td>
                 <td>{{ t.createdAt | date:'dd/MM/yyyy HH:mm' }}</td>
+                <td>
+                    <p-button icon="pi pi-eye" severity="secondary" [text]="true" size="small"
+                        [routerLink]="['/officer/tramites', t.id]" />
+                </td>
             </tr>
         </ng-template>
 

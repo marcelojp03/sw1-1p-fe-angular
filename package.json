@@ -25,6 +25,7 @@
     "@tailwindcss/postcss": "^4.1.11",
     "apexcharts": "^5.3.6",
     "chart.js": "4.4.2",
+    "jointjs": "^3.7.7",
     "ng-apexcharts": "^2.0.4",
     "primeclt": "^0.1.5",
     "primeicons": "^7.0.0",
