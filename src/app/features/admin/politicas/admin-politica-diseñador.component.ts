@@ -15,12 +15,15 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { TagModule } from 'primeng/tag';
 import { DividerModule } from 'primeng/divider';
 import { TooltipModule } from 'primeng/tooltip';
+import { DialogModule } from 'primeng/dialog';
+import { CheckboxModule } from 'primeng/checkbox';
 import * as joint from 'jointjs';
 import { PoliticaService } from './politicas.service';
 import { AuthService } from '../../../core/services/auth.service';
 import {
     PolicyResponse, PolicyNode, PolicyTransition, NodeType,
 } from './politica.model';
+import { FormField } from '../../officer/tareas/tarea.model';
 
 interface NodeDef { type: NodeType; label: string; icon: string; color: string; shape: string; }
 interface SelectedNodeData {
@@ -30,6 +33,7 @@ interface SelectedNodeData {
     assignedAreaId: number | null;
     estimatedMinutes: number | null;
     condition: string;
+    formFields: FormField[];
 }
 
 @Component({
@@ -38,7 +42,7 @@ interface SelectedNodeData {
     imports: [
         CommonModule, FormsModule, ToastModule, ButtonModule, InputTextModule,
         InputNumberModule, SelectModule, CardModule, ProgressSpinnerModule,
-        TagModule, DividerModule, TooltipModule,
+        TagModule, DividerModule, TooltipModule, DialogModule, CheckboxModule,
     ],
     providers: [MessageService],
     styles: [`
@@ -173,18 +177,90 @@ interface SelectedNodeData {
                   </div>
                 }
 
+                @if (['MANUAL_FORM','CLIENT_TASK'].includes(selected()!.nodeType)) {
+                  <p-divider />
+                  <p class="text-xs font-semibold text-surface-400 uppercase mb-2">Definición de Formulario</p>
+                  @if (selected()!.formFields.length === 0) {
+                    <p class="text-xs text-surface-400 mb-2">Sin campos definidos.</p>
+                  }
+                  @for (field of selected()!.formFields; track field.name; let i = $index) {
+                    <div class="flex items-center justify-between text-xs bg-white border border-surface-200 rounded px-2 py-1 mb-1 gap-1">
+                      <span class="font-medium truncate flex-1 min-w-0" [title]="field.label">{{ field.label }}</span>
+                      <span class="text-surface-400 text-[10px] shrink-0">{{ field.type }}</span>
+                      <p-button icon="pi pi-times" [text]="true" severity="danger" size="small"
+                        (onClick)="removeFormField(i)" />
+                    </div>
+                  }
+                  <p-button label="+ Agregar campo" size="small" [outlined]="true" styleClass="w-full mt-1"
+                    (onClick)="openFormFieldDialog()" />
+                }
+
                 <p-button label="Eliminar nodo" icon="pi pi-trash" severity="danger"
                   size="small" [outlined]="true" class="w-full" (onClick)="deleteSelected()" />
+              </div>
+            } @else if (selectedLink()) {
+              <p class="text-xs font-semibold text-surface-400 uppercase mb-3">Propiedades de Transición</p>
+              <div class="flex flex-col gap-3">
+                <div>
+                  <label class="text-xs font-medium text-surface-500 block mb-1">Etiqueta</label>
+                  <input pInputText [ngModel]="selectedLink()!.label" class="w-full text-sm"
+                    (ngModelChange)="updateLinkLabel($event)" placeholder="ej: Aprobado" />
+                </div>
+                <div>
+                  <label class="text-xs font-medium text-surface-500 block mb-1">Condición</label>
+                  <input pInputText [ngModel]="selectedLink()!.condition" class="w-full text-sm"
+                    (ngModelChange)="updateLinkCondition($event)" placeholder="ej: amount > 1000" />
+                </div>
+                <p-button label="Eliminar transición" icon="pi pi-trash" severity="danger"
+                  size="small" [outlined]="true" class="w-full" (onClick)="deleteSelectedLink()" />
               </div>
             } @else {
               <div class="flex flex-col items-center justify-center h-40 text-surface-400 text-sm text-center">
                 <i class="pi pi-mouse text-2xl mb-2"></i>
-                Selecciona un nodo para editar sus propiedades
+                Selecciona un nodo o transición para editar
               </div>
             }
           </div>
         </div>
       }
+
+      <!-- Dialog: agregar campo de formulario -->
+      <p-dialog header="Agregar campo al formulario" [modal]="true" [(visible)]="formDialogVisible"
+        [style]="{width: '420px'}" [closable]="true">
+        <div class="flex flex-col gap-3 pt-2">
+          <div>
+            <label class="text-xs font-medium text-surface-500 block mb-1">Nombre (clave, sin espacios)</label>
+            <input pInputText [(ngModel)]="newField.name" class="w-full text-sm" placeholder="ej: amount" />
+          </div>
+          <div>
+            <label class="text-xs font-medium text-surface-500 block mb-1">Etiqueta visible</label>
+            <input pInputText [(ngModel)]="newField.label" class="w-full text-sm" placeholder="ej: Monto" />
+          </div>
+          <div>
+            <label class="text-xs font-medium text-surface-500 block mb-1">Tipo de campo</label>
+            <p-select [(ngModel)]="newField.type" [options]="fieldTypes"
+              optionLabel="label" optionValue="value" styleClass="w-full" />
+          </div>
+          <div class="flex items-center gap-2">
+            <p-checkbox [(ngModel)]="newField.required" [binary]="true" inputId="req" />
+            <label for="req" class="text-sm">Requerido</label>
+          </div>
+          @if (newField.type === 'SELECT') {
+            <div>
+              <label class="text-xs font-medium text-surface-500 block mb-1">Opciones (separar con coma)</label>
+              <input pInputText [(ngModel)]="newField.optionsStr" class="w-full text-sm"
+                placeholder="ej: Opción A, Opción B" />
+            </div>
+          }
+        </div>
+        <ng-template #footer>
+          <div class="flex justify-end gap-2 pt-2">
+            <p-button label="Cancelar" severity="secondary" [outlined]="true" size="small"
+              (onClick)="formDialogVisible = false" />
+            <p-button label="Agregar" size="small" (onClick)="saveNewFormField()" />
+          </div>
+        </ng-template>
+      </p-dialog>
     </div>
     `,
 })
@@ -204,6 +280,18 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
     linkMode = signal(false);
     politica = signal<PolicyResponse | null>(null);
     selected = signal<SelectedNodeData | null>(null);
+    selectedLink = signal<{ cellId: string; label: string; condition: string } | null>(null);
+    formDialogVisible = false;
+    newField = { name: '', label: '', type: 'TEXT', required: false, optionsStr: '' };
+    fieldTypes = [
+        { label: 'Texto', value: 'TEXT' },
+        { label: 'Número', value: 'NUMBER' },
+        { label: 'Área de texto', value: 'TEXTAREA' },
+        { label: 'Fecha', value: 'DATE' },
+        { label: 'Selección', value: 'SELECT' },
+        { label: 'Booleano', value: 'BOOLEAN' },
+        { label: 'Archivo', value: 'FILE' },
+    ];
 
     private graph!: joint.dia.Graph;
     private paper!: joint.dia.Paper;
@@ -260,9 +348,18 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
         // Events
         this.paper.on('element:pointerclick', (view: any) => {
             if (this.linkMode()) return;
+            this.selectedLink.set(null);
             this.onSelectElement(view.model as joint.dia.Element);
         });
-        this.paper.on('blank:pointerclick', () => { this.selected.set(null); });
+        this.paper.on('link:pointerclick', (view: any) => {
+            if (this.linkMode()) return;
+            this.selected.set(null);
+            this.onSelectLink(view.model as joint.dia.Link);
+        });
+        this.paper.on('blank:pointerclick', () => {
+            this.selected.set(null);
+            this.selectedLink.set(null);
+        });
     }
 
     addNode(nd: NodeDef): void {
@@ -341,7 +438,85 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
             assignedAreaId: data.assignedAreaId ?? null,
             estimatedMinutes: data.estimatedMinutes ?? null,
             condition: data.condition ?? '',
+            formFields: (data.form?.fields ?? []) as FormField[],
         });
+    }
+
+    private onSelectLink(lk: joint.dia.Link): void {
+        const data = (lk as any).get('data') ?? {};
+        const labelEntry = (lk as any).label(0);
+        const label = labelEntry?.attrs?.text?.text as string ?? '';
+        this.selectedLink.set({
+            cellId: lk.id as string,
+            label,
+            condition: data.condition ?? '',
+        });
+    }
+
+    updateLinkLabel(newLabel: string): void {
+        const sl = this.selectedLink();
+        if (!sl) return;
+        const lk = this.graph.getCell(sl.cellId) as joint.dia.Link;
+        if (!lk) return;
+        lk.label(0, { attrs: { text: { text: newLabel } } });
+        this.selectedLink.set({ ...sl, label: newLabel });
+    }
+
+    updateLinkCondition(newCond: string): void {
+        const sl = this.selectedLink();
+        if (!sl) return;
+        const lk = this.graph.getCell(sl.cellId) as joint.dia.Link;
+        if (!lk) return;
+        const data = (lk as any).get('data') ?? {};
+        (lk as any).set('data', { ...data, condition: newCond });
+        this.selectedLink.set({ ...sl, condition: newCond });
+    }
+
+    deleteSelectedLink(): void {
+        const sl = this.selectedLink();
+        if (!sl) return;
+        const lk = this.graph.getCell(sl.cellId);
+        if (lk) lk.remove();
+        this.selectedLink.set(null);
+    }
+
+    openFormFieldDialog(): void {
+        this.newField = { name: '', label: '', type: 'TEXT', required: false, optionsStr: '' };
+        this.formDialogVisible = true;
+    }
+
+    saveNewFormField(): void {
+        if (!this.newField.name.trim() || !this.newField.label.trim()) return;
+        const sel = this.selected();
+        if (!sel) return;
+        const field: FormField = {
+            name: this.newField.name.trim(),
+            label: this.newField.label.trim(),
+            type: this.newField.type as any,
+            required: this.newField.required,
+            options: this.newField.type === 'SELECT'
+                ? this.newField.optionsStr.split(',').map(s => s.trim()).filter(Boolean)
+                : undefined,
+        };
+        const updatedFields = [...sel.formFields, field];
+        this.updateNodeFormData(sel.cellId, updatedFields);
+        this.selected.set({ ...sel, formFields: updatedFields });
+        this.formDialogVisible = false;
+    }
+
+    removeFormField(index: number): void {
+        const sel = this.selected();
+        if (!sel) return;
+        const updatedFields = sel.formFields.filter((_, i) => i !== index);
+        this.updateNodeFormData(sel.cellId, updatedFields);
+        this.selected.set({ ...sel, formFields: updatedFields });
+    }
+
+    private updateNodeFormData(cellId: string, fields: FormField[]): void {
+        const el = this.graph.getCell(cellId) as joint.dia.Element;
+        if (!el) return;
+        const data = (el as any).get('data') ?? {};
+        (el as any).set('data', { ...data, form: { fields } });
     }
 
     updateLabel(newLabel: string): void {
@@ -383,6 +558,7 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
                 label: el.attr('label/text') as string ?? '',
                 assignedAreaId: data.assignedAreaId,
                 estimatedMinutes: data.estimatedMinutes,
+                form: data.form,
                 position: (el as joint.dia.Element).position(),
                 size: (el as joint.dia.Element).size(),
             };
