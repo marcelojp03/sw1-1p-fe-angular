@@ -8,9 +8,9 @@ import { InputTextModule } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
 import { CardModule } from 'primeng/card';
 import { MultiSelectModule } from 'primeng/multiselect';
-import { PoliticaService } from '../../../core/services/politica.service';
+import { PoliticaService } from './politicas.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { CreatePolicyRequest } from '../../../core/models/wf.models';
+import { CreatePolicyRequest } from './politica.model';
 
 @Component({
     selector: 'app-admin-politica-nuevo',

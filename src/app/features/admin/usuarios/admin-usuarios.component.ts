@@ -15,9 +15,9 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { SelectModule } from 'primeng/select';
 import { MultiSelectModule } from 'primeng/multiselect';
 import { PasswordModule } from 'primeng/password';
-import { UsuarioService } from '@/core/services/usuario.service';
+import { UsuarioService } from './usuarios.service';
 import { AuthService } from '@/core/services/auth.service';
-import { UserResponse, RegisterRequest, UpdateUserRequest } from '@/core/models/wf.models';
+import { UserResponse, RegisterRequest, UpdateUserRequest } from './usuario.model';
 
 const ROLES_DISPONIBLES = [
     { label: 'Administrador', value: 'ADMIN' },

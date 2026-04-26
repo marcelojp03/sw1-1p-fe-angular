@@ -16,11 +16,11 @@ import { TagModule } from 'primeng/tag';
 import { DividerModule } from 'primeng/divider';
 import { TooltipModule } from 'primeng/tooltip';
 import * as joint from 'jointjs';
-import { PoliticaService } from '../../../core/services/politica.service';
+import { PoliticaService } from './politicas.service';
 import { AuthService } from '../../../core/services/auth.service';
 import {
     PolicyResponse, PolicyNode, PolicyTransition, NodeType,
-} from '../../../core/models/wf.models';
+} from './politica.model';
 
 interface NodeDef { type: NodeType; label: string; icon: string; color: string; shape: string; }
 interface SelectedNodeData {

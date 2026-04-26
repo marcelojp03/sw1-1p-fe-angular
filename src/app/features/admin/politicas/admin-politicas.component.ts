@@ -11,9 +11,9 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
 import { InputTextModule } from 'primeng/inputtext';
-import { PoliticaService } from '../../../core/services/politica.service';
+import { PoliticaService } from './politicas.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { PolicySummaryResponse } from '../../../core/models/wf.models';
+import { PolicySummaryResponse } from './politica.model';
 
 @Component({
     selector: 'app-admin-politicas',

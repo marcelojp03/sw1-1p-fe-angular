@@ -7,11 +7,12 @@ import { ButtonModule } from 'primeng/button';
 import { SelectModule } from 'primeng/select';
 import { CardModule } from 'primeng/card';
 import { InputTextModule } from 'primeng/inputtext';
-import { ProcedureService } from '../../../core/services/procedure.service';
-import { PolicyService } from '../../../core/services/policy.service';
-import { ClientService } from '../../../core/services/client.service';
+import { ProcedureService } from './tramites.service';
+import { PoliticaService } from '../../admin/politicas/politicas.service';
+import { ClientService } from '../clientes/clientes.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { PolicySummaryResponse, ClientResponse } from '../../../core/models/wf.models';
+import { PolicySummaryResponse } from '../../admin/politicas/politica.model';
+import { ClientResponse } from '../clientes/cliente.model';
 
 @Component({
     selector: 'app-officer-nuevo-tramite',
@@ -23,7 +24,7 @@ import { PolicySummaryResponse, ClientResponse } from '../../../core/models/wf.m
 export class OfficerNuevoTramiteComponent implements OnInit {
     private router = inject(Router);
     private procedureService = inject(ProcedureService);
-    private policyService = inject(PolicyService);
+    private policyService = inject(PoliticaService);
     private clientService = inject(ClientService);
     private auth = inject(AuthService);
     private message = inject(MessageService);

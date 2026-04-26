@@ -1,8 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { environment } from '../../../environments/environment';
-import { TaskResponse, CompleteTaskRequest } from '../models/wf.models';
+import { environment } from '../../../../environments/environment';
+import { TaskResponse, CompleteTaskRequest } from './tarea.model';
 
 @Injectable({ providedIn: 'root' })
 export class TaskService {

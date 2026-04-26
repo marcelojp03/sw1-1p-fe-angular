@@ -1,8 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { environment } from '../../../environments/environment';
-import { ClientResponse, CreateClientRequest, UpdateClientRequest } from '../models/wf.models';
+import { environment } from '../../../../environments/environment';
+import { ClientResponse, CreateClientRequest, UpdateClientRequest } from './cliente.model';
 
 @Injectable({ providedIn: 'root' })
 export class ClientService {

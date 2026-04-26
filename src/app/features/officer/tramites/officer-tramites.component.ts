@@ -9,9 +9,9 @@ import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageService } from 'primeng/api';
-import { ProcedureService } from '../../../core/services/procedure.service';
+import { ProcedureService } from './tramites.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { ProcedureSummaryResponse } from '../../../core/models/wf.models';
+import { ProcedureSummaryResponse } from './tramite.model';
 
 @Component({
     selector: 'app-officer-tramites',

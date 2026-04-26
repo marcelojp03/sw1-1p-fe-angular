@@ -11,9 +11,9 @@ import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
 import { InputTextModule } from 'primeng/inputtext';
 import { DatePipe } from '@angular/common';
-import { TaskService } from '../../../core/services/task.service';
+import { TaskService } from './tareas.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { TaskResponse } from '../../../core/models/wf.models';
+import { TaskResponse } from './tarea.model';
 
 @Component({
     selector: 'app-officer-tareas',

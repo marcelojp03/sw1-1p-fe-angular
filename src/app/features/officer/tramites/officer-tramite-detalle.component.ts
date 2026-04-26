@@ -9,8 +9,8 @@ import { TagModule } from 'primeng/tag';
 import { TimelineModule } from 'primeng/timeline';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { DividerModule } from 'primeng/divider';
-import { ProcedureService } from '../../../core/services/procedure.service';
-import { ProcedureResponse, ProcedureHistory } from '../../../core/models/wf.models';
+import { ProcedureService } from './tramites.service';
+import { ProcedureResponse, ProcedureHistory } from './tramite.model';
 
 @Component({
     selector: 'app-officer-tramite-detalle',

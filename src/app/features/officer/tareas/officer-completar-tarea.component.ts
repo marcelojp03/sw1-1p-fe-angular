@@ -14,8 +14,8 @@ import { CardModule } from 'primeng/card';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { TagModule } from 'primeng/tag';
 import { DividerModule } from 'primeng/divider';
-import { TaskService } from '../../../core/services/task.service';
-import { TaskResponse, FormField } from '../../../core/models/wf.models';
+import { TaskService } from './tareas.service';
+import { TaskResponse, FormField } from './tarea.model';
 
 @Component({
     selector: 'app-officer-completar-tarea',

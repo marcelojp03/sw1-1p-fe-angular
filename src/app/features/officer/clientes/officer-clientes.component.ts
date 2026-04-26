@@ -10,9 +10,9 @@ import { DialogModule } from 'primeng/dialog';
 import { SelectModule } from 'primeng/select';
 import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
-import { ClientService } from '../../../core/services/client.service';
+import { ClientService } from './clientes.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { ClientResponse, CreateClientRequest, UpdateClientRequest } from '../../../core/models/wf.models';
+import { ClientResponse, CreateClientRequest, UpdateClientRequest } from './cliente.model';
 
 const DOCUMENT_TYPES = ['CI', 'NIT', 'PASAPORTE', 'CARNET_EXTRANJERIA'];
 

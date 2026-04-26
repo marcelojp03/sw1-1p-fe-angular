@@ -11,9 +11,9 @@ import { TableModule } from 'primeng/table';
 import { DialogModule } from 'primeng/dialog';
 import { TagModule } from 'primeng/tag';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
-import { OrganizationService } from '../../../core/services/organization.service';
+import { OrganizationService } from './organizacion.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { OrganizationResponse, AreaResponse, CreateAreaRequest } from '../../../core/models/wf.models';
+import { OrganizationResponse, AreaResponse, CreateAreaRequest } from './organizacion.model';
 
 @Component({
     selector: 'app-admin-organizacion',
