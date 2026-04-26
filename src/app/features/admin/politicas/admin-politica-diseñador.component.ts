@@ -24,6 +24,10 @@ import {
     PolicyResponse, PolicyNode, PolicyTransition, NodeType,
 } from './politica.model';
 import { FormField } from '../../officer/tareas/tarea.model';
+import { AiPoliticaService } from './ai-politica.service';
+import {
+    NodeSuggestion, TransitionSuggestion, FieldSuggestion,
+} from './ai-politica.model';
 
 interface NodeDef { type: NodeType; label: string; icon: string; color: string; shape: string; }
 interface SelectedNodeData {
@@ -92,6 +96,16 @@ interface SelectedNodeData {
           />
           <p-button label="Guardar" icon="pi pi-save" size="small" [loading]="saving()"
             (onClick)="guardar()" />
+          <p-button
+            label="Sugerir con IA"
+            icon="pi pi-sparkles"
+            size="small"
+            severity="secondary"
+            [outlined]="true"
+            [loading]="aiLoading()"
+            pTooltip="Sugerir nodos con Inteligencia Artificial"
+            (onClick)="abrirDialogoAI()"
+          />
           @if (politica()?.status === 'DRAFT') {
             <p-button label="Publicar" icon="pi pi-send" size="small" severity="success"
               [loading]="publishing()" (onClick)="publicar()" />
@@ -193,6 +207,16 @@ interface SelectedNodeData {
                   }
                   <p-button label="+ Agregar campo" size="small" [outlined]="true" styleClass="w-full mt-1"
                     (onClick)="openFormFieldDialog()" />
+                  <p-button
+                    label="Sugerir con IA"
+                    icon="pi pi-sparkles"
+                    size="small"
+                    severity="info"
+                    [outlined]="true"
+                    [loading]="aiFieldsLoading()"
+                    styleClass="w-full mt-1"
+                    (onClick)="sugerirCamposIA()"
+                  />
                 }
 
                 <p-button label="Eliminar nodo" icon="pi pi-trash" severity="danger"
@@ -261,6 +285,71 @@ interface SelectedNodeData {
           </div>
         </ng-template>
       </p-dialog>
+
+      <!-- Dialog: sugerencias de workflow IA -->
+      <p-dialog header="Sugerencias de nodos (IA)" [(visible)]="aiDialogVisible"
+        [style]="{ width: '80vw', maxWidth: '900px' }" [modal]="true" [draggable]="false">
+        @if (aiLoading()) {
+          <div class="flex justify-center items-center py-8"><p-progressspinner /></div>
+        }
+        @if (!aiLoading() && aiSuggestions().length > 0) {
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+            @for (s of aiSuggestions(); track s.label) {
+              <div class="border border-surface-200 rounded p-3 bg-surface-50">
+                <div class="flex items-center gap-2 mb-1">
+                  <p-tag [value]="s.type" severity="info" />
+                  <span class="font-semibold text-sm">{{ s.label }}</span>
+                </div>
+                <p class="text-xs text-surface-500 mb-2">{{ s.description }}</p>
+                @if (s.suggestedArea) {
+                  <p class="text-xs text-surface-400">Área: {{ s.suggestedArea }}</p>
+                }
+                <p-button label="Agregar al diagrama" icon="pi pi-plus" size="small"
+                  (onClick)="agregarNodoDesdeIA(s)" />
+              </div>
+            }
+          </div>
+          @if (aiTransitions().length > 0) {
+            <p-divider />
+            <p class="text-sm font-semibold mb-2">Transiciones sugeridas</p>
+            <ul class="text-xs text-surface-500 list-disc ml-4">
+              @for (t of aiTransitions(); track t.from + t.to) {
+                <li>{{ t.from }} → {{ t.to }} @if (t.condition) { <span class="italic">({{ t.condition }})</span> }</li>
+              }
+            </ul>
+          }
+        }
+        @if (!aiLoading() && aiSuggestions().length === 0 && aiCalled()) {
+          <p class="text-surface-400 text-sm text-center py-4">La IA no devolvió sugerencias.</p>
+        }
+      </p-dialog>
+
+      <!-- Dialog: sugerencias de campos IA -->
+      <p-dialog header="Campos sugeridos por IA" [(visible)]="aiFieldsDialogVisible"
+        [style]="{ width: '60vw', maxWidth: '700px' }" [modal]="true" [draggable]="false">
+        @if (aiFieldsLoading()) {
+          <div class="flex justify-center items-center py-8"><p-progressspinner /></div>
+        }
+        @if (!aiFieldsLoading() && aiFieldSuggestions().length > 0) {
+          <div class="flex flex-col gap-2 mb-4">
+            @for (f of aiFieldSuggestions(); track f.fieldId) {
+              <div class="flex items-center justify-between border border-surface-200 rounded px-3 py-2">
+                <div>
+                  <span class="font-medium text-sm">{{ f.label }}</span>
+                  <span class="text-xs text-surface-400 ml-2">{{ f.type }}</span>
+                  @if (f.required) { <span class="text-xs text-red-400 ml-1">*</span> }
+                  @if (f.description) { <p class="text-xs text-surface-400 mt-0.5">{{ f.description }}</p> }
+                </div>
+                <p-button icon="pi pi-plus" size="small" [text]="true"
+                  pTooltip="Agregar campo" (onClick)="agregarCampoDesdeIA(f)" />
+              </div>
+            }
+          </div>
+        }
+        @if (!aiFieldsLoading() && aiFieldSuggestions().length === 0) {
+          <p class="text-surface-400 text-sm text-center py-4">La IA no devolvió sugerencias de campos.</p>
+        }
+      </p-dialog>
     </div>
     `,
 })
@@ -272,6 +361,7 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
     private auth = inject(AuthService);
     private message = inject(MessageService);
     private cdr = inject(ChangeDetectorRef);
+    private aiService = inject(AiPoliticaService);
     router = inject(Router);
 
     loading = signal(true);
@@ -283,6 +373,16 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
     selectedLink = signal<{ cellId: string; label: string; condition: string } | null>(null);
     formDialogVisible = false;
     newField = { name: '', label: '', type: 'TEXT', required: false, optionsStr: '' };
+
+    // IA signals
+    aiLoading = signal(false);
+    aiFieldsLoading = signal(false);
+    aiDialogVisible = false;
+    aiFieldsDialogVisible = false;
+    aiSuggestions = signal<NodeSuggestion[]>([]);
+    aiTransitions = signal<TransitionSuggestion[]>([]);
+    aiFieldSuggestions = signal<FieldSuggestion[]>([]);
+    aiCalled = signal(false);
     fieldTypes = [
         { label: 'Texto', value: 'TEXT' },
         { label: 'Número', value: 'NUMBER' },
@@ -592,8 +692,97 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
         });
     }
 
-    publicar(): void {
-        this.publishing.set(true);
+    private get orgId(): number {
+        return this.auth.currentUserSignal()?.organizationId ?? 0;
+    }
+
+    abrirDialogoAI(): void {
+        const p = this.politica();
+        if (!p) return;
+        this.aiDialogVisible = true;
+        this.aiLoading.set(true);
+        this.aiCalled.set(false);
+        this.aiSuggestions.set([]);
+        this.aiTransitions.set([]);
+
+        const existingNodes = this.graph?.getElements().map(el => ({
+            nodeId: el.id as string,
+            type: (el as any).get('data')?.nodeType ?? '',
+            label: el.attr('label/text') as string ?? '',
+        })) ?? [];
+
+        this.aiService.suggestWorkflow({
+            organizationName: '',
+            policyName: p.name,
+            policyDescription: (p as any).description ?? '',
+            existingNodes,
+            language: 'es',
+        }, this.orgId).subscribe({
+            next: (res) => {
+                this.aiSuggestions.set(res.suggestions ?? []);
+                this.aiTransitions.set(res.suggestedTransitions ?? []);
+                this.aiLoading.set(false);
+                this.aiCalled.set(true);
+            },
+            error: (err) => {
+                this.aiLoading.set(false);
+                this.aiCalled.set(true);
+                this.message.add({ severity: 'error', summary: 'Error IA', detail: err?.error?.message ?? 'No se pudo obtener sugerencias' });
+            },
+        });
+    }
+
+    agregarNodoDesdeIA(s: NodeSuggestion): void {
+        const nd = this.nodeDefs.find(n => n.type === (s.type as NodeType)) ?? {
+            type: s.type as NodeType, label: s.label, icon: 'pi-box', color: '#94A3B8', shape: 'rect',
+        };
+        this.addNode({ ...nd, label: s.label });
+    }
+
+    sugerirCamposIA(): void {
+        const sel = this.selected();
+        const p = this.politica();
+        if (!sel || !p) return;
+        this.aiFieldsDialogVisible = true;
+        this.aiFieldsLoading.set(true);
+        this.aiFieldSuggestions.set([]);
+
+        this.aiService.suggestFormFields({
+            policyName: p.name,
+            nodeLabel: sel.label,
+            nodeType: sel.nodeType,
+            areaName: '',
+            existingFields: sel.formFields.map(f => f.label),
+            language: 'es',
+        }, this.orgId).subscribe({
+            next: (res) => {
+                this.aiFieldSuggestions.set(res.suggestions ?? []);
+                this.aiFieldsLoading.set(false);
+            },
+            error: (err) => {
+                this.aiFieldsLoading.set(false);
+                this.message.add({ severity: 'error', summary: 'Error IA', detail: err?.error?.message ?? 'No se pudo obtener sugerencias de campos' });
+            },
+        });
+    }
+
+    agregarCampoDesdeIA(f: FieldSuggestion): void {
+        const sel = this.selected();
+        if (!sel) return;
+        const field: FormField = {
+            name: f.fieldId,
+            label: f.label,
+            type: f.type as any,
+            required: f.required,
+            options: f.options,
+        };
+        const updatedFields = [...sel.formFields, field];
+        this.updateNodeFormData(sel.cellId, updatedFields);
+        this.selected.set({ ...sel, formFields: updatedFields });
+        this.aiFieldsDialogVisible = false;
+    }
+
+    publicar(): void {        this.publishing.set(true);
         this.politicaService.publish(this.policyId).subscribe({
             next: (p) => {
                 this.publishing.set(false);

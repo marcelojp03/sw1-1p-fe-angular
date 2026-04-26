@@ -1,8 +1,50 @@
-<div class="grid grid-cols-12 gap-8">
+<div class="grid grid-cols-12 gap-6">
     <div class="col-span-12 flex items-center justify-between">
         <h5 class="m-0 text-xl font-semibold">Panel de Administración</h5>
     </div>
 
+    @if (loading()) {
+        <div class="col-span-12 flex justify-center py-12">
+            <p-progressspinner />
+        </div>
+    }
+
+    @if (!loading() && summary()) {
+        <!-- KPI Cards -->
+        <div class="col-span-12 grid grid-cols-2 md:grid-cols-4 gap-4">
+            <p-card styleClass="text-center">
+                <i class="pi pi-list text-3xl text-blue-500 mb-2 block"></i>
+                <p class="text-3xl font-bold m-0">{{ summary()!.totalProcedures }}</p>
+                <p class="text-surface-400 text-sm mt-1 m-0">Total trámites</p>
+            </p-card>
+            <p-card styleClass="text-center">
+                <i class="pi pi-spin pi-spinner text-3xl text-blue-400 mb-2 block"></i>
+                <p class="text-3xl font-bold m-0">{{ summary()!.proceduresByStatus['IN_PROGRESS'] || 0 }}</p>
+                <p class="text-surface-400 text-sm mt-1 m-0">En curso</p>
+            </p-card>
+            <p-card styleClass="text-center">
+                <i class="pi pi-clock text-3xl text-amber-500 mb-2 block"></i>
+                <p class="text-3xl font-bold m-0">{{ summary()!.pendingTasks }}</p>
+                <p class="text-surface-400 text-sm mt-1 m-0">Tareas pendientes</p>
+            </p-card>
+            <p-card styleClass="text-center">
+                <i class="pi pi-exclamation-triangle text-3xl text-red-500 mb-2 block"></i>
+                <p class="text-3xl font-bold m-0">{{ summary()!.overdueTasks }}</p>
+                <p class="text-surface-400 text-sm mt-1 m-0">Tareas vencidas</p>
+            </p-card>
+        </div>
+
+        <!-- Chart -->
+        @if (chartData) {
+            <div class="col-span-12">
+                <p-card header="Trámites por estado">
+                    <p-chart type="bar" [data]="chartData" [options]="chartOptions" height="280px" />
+                </p-card>
+            </div>
+        }
+    }
+
+    <!-- Accesos rápidos -->
     <div class="col-span-12">
         <p-card header="Accesos rápidos">
             <div class="flex flex-wrap gap-3">

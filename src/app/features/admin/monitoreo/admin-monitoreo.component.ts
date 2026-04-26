@@ -11,6 +11,8 @@ import { CardModule } from 'primeng/card';
 import { ProcedureService } from '../../officer/tramites/tramites.service';
 import { ProcedureSummaryResponse } from '../../officer/tramites/tramite.model';
 import { AuthService } from '../../../core/services/auth.service';
+import { DashboardService } from '../dashboard/dashboard.service';
+import { TaskOverdueItem } from '../dashboard/dashboard.model';
 
 @Component({
     selector: 'app-admin-monitoreo',
@@ -91,6 +93,50 @@ import { AuthService } from '../../../core/services/auth.service';
           </ng-template>
         </p-table>
       }
+
+      <!-- Tareas vencidas -->
+      <div class="mt-6">
+        <p-card>
+          <ng-template pTemplate="header">
+            <div class="flex items-center gap-2 p-4 pb-0">
+              <i class="pi pi-exclamation-triangle text-red-500"></i>
+              <span class="font-semibold text-base">Tareas Vencidas</span>
+            </div>
+          </ng-template>
+          @if (overdueLoading()) {
+            <div class="flex justify-center items-center h-24"><p-progressspinner /></div>
+          } @else {
+            <p-table [value]="overdueTasks()" [paginator]="true" [rows]="10"
+              styleClass="p-datatable-sm" [showCurrentPageReport]="true">
+              <ng-template pTemplate="header">
+                <tr>
+                  <th>Código trámite</th>
+                  <th>Nodo</th>
+                  <th>Área</th>
+                  <th>Vencimiento</th>
+                  <th>Días vencida</th>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-t>
+                <tr>
+                  <td class="font-mono text-sm">{{ t.procedureCode }}</td>
+                  <td>{{ t.nodeLabel }}</td>
+                  <td class="text-sm">{{ t.assignedAreaId }}</td>
+                  <td class="text-sm text-surface-500">{{ t.dueAt | date:'dd/MM/yyyy HH:mm' }}</td>
+                  <td>
+                    <p-tag [value]="t.overdueDays + ' días'" severity="danger" />
+                  </td>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr>
+                  <td colspan="5" class="text-center text-surface-400 py-6">Sin tareas vencidas.</td>
+                </tr>
+              </ng-template>
+            </p-table>
+          }
+        </p-card>
+      </div>
     </div>
     `,
 })
@@ -98,14 +144,28 @@ export class AdminMonitoreoComponent implements OnInit {
     private procedureService = inject(ProcedureService);
     private auth = inject(AuthService);
     private message = inject(MessageService);
+    private dashboardService = inject(DashboardService);
     router = inject(Router);
 
     tramites = signal<ProcedureSummaryResponse[]>([]);
     loading = signal(true);
     selectedStatus = signal<string>('');
+    overdueTasks = signal<TaskOverdueItem[]>([]);
+    overdueLoading = signal(false);
 
     ngOnInit(): void {
         this.cargar();
+        this.cargarVencidas();
+    }
+
+    cargarVencidas(): void {
+        const orgId = this.auth.currentUserSignal()?.organizationId;
+        if (!orgId) return;
+        this.overdueLoading.set(true);
+        this.dashboardService.tasksOverdue(orgId).subscribe({
+            next: (page) => { this.overdueTasks.set(page.content); this.overdueLoading.set(false); },
+            error: () => this.overdueLoading.set(false),
+        });
     }
 
     cargar(): void {
