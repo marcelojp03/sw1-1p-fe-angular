@@ -48,8 +48,18 @@
                                 pTooltip="Publicar" (onClick)="confirmarPublicar(p)" />
                         }
                         @if (p.status === 'PUBLISHED') {
+                            <p-button icon="pi pi-eye" severity="info" [text]="true" size="small"
+                                pTooltip="Ver diagrama" [routerLink]="['/admin/politicas', p.id, 'editar']" />
+                            <p-button icon="pi pi-copy" severity="warn" [text]="true" size="small"
+                                pTooltip="Nueva versión (borrador)" (onClick)="confirmarNuevaVersion(p)" />
                             <p-button icon="pi pi-archive" severity="secondary" [text]="true" size="small"
                                 pTooltip="Archivar" (onClick)="confirmarArchivar(p)" />
+                        }
+                        @if (p.status === 'ARCHIVED') {
+                            <p-button icon="pi pi-eye" severity="secondary" [text]="true" size="small"
+                                pTooltip="Ver diagrama" [routerLink]="['/admin/politicas', p.id, 'editar']" />
+                            <p-button icon="pi pi-copy" severity="warn" [text]="true" size="small"
+                                pTooltip="Nueva versión (borrador)" (onClick)="confirmarNuevaVersion(p)" />
                         }
                     </div>
                 </td>
@@ -81,7 +91,7 @@
         <div class="flex flex-col gap-1">
             <label class="font-medium">Canales de inicio</label>
             <p-multiselect [(ngModel)]="nuevoForm.allowedStartChannels" [options]="channels"
-                optionLabel="label" optionValue="value" placeholder="Seleccionar canales" class="w-full" />
+                optionLabel="label" optionValue="value" placeholder="Seleccionar canales" class="w-full" appendTo="body" />
         </div>
     </div>
     <ng-template #footer>

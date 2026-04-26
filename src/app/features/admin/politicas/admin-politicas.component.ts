@@ -126,6 +126,30 @@ export class AdminPoliticasComponent implements OnInit {
         });
     }
 
+    confirmarNuevaVersion(p: PolicySummaryResponse): void {
+        this.confirm.confirm({
+            message: `Se creará la versión ${p.version + 1} de "${p.name}" como borrador. ¿Continuar?`,
+            header: 'Nueva Versión',
+            icon: 'pi pi-copy',
+            accept: () => this.crearNuevaVersion(p),
+        });
+    }
+
+    crearNuevaVersion(p: PolicySummaryResponse): void {
+        const orgId = this.auth.currentUserSignal()?.organizationId;
+        if (!orgId) return;
+        this.politicaService.newVersion(orgId, p.policyKey).subscribe({
+            next: (nueva) => {
+                this.message.add({ severity: 'success', summary: 'Nueva versión', detail: `v${nueva.version} creada como borrador` });
+                this.router.navigate(['/admin/politicas', nueva.id, 'editar']);
+            },
+            error: (err) => {
+                const msg = err?.error?.message ?? 'No se pudo crear nueva versión';
+                this.message.add({ severity: 'error', summary: 'Error', detail: msg });
+            },
+        });
+    }
+
     statusSeverity(status: string): 'success' | 'info' | 'warn' | 'danger' | 'secondary' {
         const map: Record<string, 'success' | 'info' | 'warn' | 'danger' | 'secondary'> = {
             DRAFT: 'warn',

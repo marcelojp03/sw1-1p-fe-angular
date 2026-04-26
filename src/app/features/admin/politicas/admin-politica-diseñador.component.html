@@ -16,27 +16,32 @@
           }
         </div>
         <div class="flex items-center gap-2">
-          <p-button
-            [label]="linkMode() ? 'Modo: Conectar' : 'Modo: Mover'"
-            [icon]="linkMode() ? 'pi pi-arrows-h' : 'pi pi-arrows-alt'"
-            [severity]="linkMode() ? 'warn' : 'secondary'"
-            size="small"
-            [outlined]="true"
-            (onClick)="toggleLinkMode()"
-            pTooltip="Cambiar entre modo mover y modo conectar"
-          />
-          <p-button label="Guardar" icon="pi pi-save" size="small" [loading]="saving()"
-            (onClick)="guardar()" />
-          <p-button
-            label="Sugerir con IA"
-            icon="pi pi-sparkles"
-            size="small"
-            severity="secondary"
-            [outlined]="true"
-            [loading]="aiLoading()"
-            pTooltip="Sugerir nodos con Inteligencia Artificial"
-            (onClick)="abrirDialogoAI()"
-          />
+          @if (!isReadOnly()) {
+            <p-button
+              [label]="linkMode() ? 'Modo: Conectar' : 'Modo: Mover'"
+              [icon]="linkMode() ? 'pi pi-arrows-h' : 'pi pi-arrows-alt'"
+              [severity]="linkMode() ? 'warn' : 'secondary'"
+              size="small"
+              [outlined]="true"
+              (onClick)="toggleLinkMode()"
+              pTooltip="Cambiar entre modo mover y modo conectar"
+            />
+            <p-button label="Guardar" icon="pi pi-save" size="small" [loading]="saving()"
+              (onClick)="guardar()" />
+            <p-button
+              label="Sugerir con IA"
+              icon="pi pi-sparkles"
+              size="small"
+              severity="secondary"
+              [outlined]="true"
+              [loading]="aiLoading()"
+              pTooltip="Sugerir nodos con Inteligencia Artificial"
+              (onClick)="abrirDialogoAI()"
+            />
+          }
+          @if (isReadOnly()) {
+            <p-tag value="Solo lectura" severity="secondary" icon="pi pi-lock" />
+          }
           @if (politica()?.status === 'DRAFT') {
             <p-button label="Publicar" icon="pi pi-send" size="small" severity="success"
               [loading]="publishing()" (onClick)="publicar()" />
@@ -54,7 +59,8 @@
         <!-- Designer layout -->
         <div class="flex flex-1 overflow-hidden">
 
-          <!-- Left: Palette -->
+          <!-- Left: Palette (solo en modo edición) -->
+          @if (!isReadOnly()) {
           <div class="w-52 flex-shrink-0 overflow-y-auto bg-surface-50 border-r border-surface-200 p-3">
             <p class="text-xs font-semibold text-surface-400 uppercase mb-3">Nodos</p>
             <div class="flex flex-col gap-2">
@@ -78,6 +84,7 @@
               Selecciona un nodo para editar sus propiedades.
             </p>
           </div>
+          } <!-- end @if (!isReadOnly()) paleta -->
 
           <!-- Center: Canvas -->
           <div class="flex-1 overflow-auto canvas-wrapper" [class.link-mode]="linkMode()">
@@ -85,6 +92,8 @@
           </div>
 
           <!-- Right: Properties -->
+          <!-- Right: Properties (solo en modo edición) -->
+          @if (!isReadOnly()) {
           <div class="w-72 flex-shrink-0 overflow-y-auto bg-surface-50 border-l border-surface-200 p-3">
             @if (selected()) {
               <p class="text-xs font-semibold text-surface-400 uppercase mb-3">Propiedades del Nodo</p>
@@ -176,6 +185,7 @@
               </div>
             }
           </div>
+          } <!-- end @if (!isReadOnly()) propiedades -->
         </div>
       }
 
@@ -194,7 +204,7 @@
           <div>
             <label class="text-xs font-medium text-surface-500 block mb-1">Tipo de campo</label>
             <p-select [(ngModel)]="newField.type" [options]="fieldTypes"
-              optionLabel="label" optionValue="value" styleClass="w-full" />
+              optionLabel="label" optionValue="value" styleClass="w-full" appendTo="body" />
           </div>
           <div class="flex items-center gap-2">
             <p-checkbox [(ngModel)]="newField.required" [binary]="true" inputId="req" />

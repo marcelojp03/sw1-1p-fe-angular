@@ -1,5 +1,5 @@
 import {
-    Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, inject, signal, ChangeDetectorRef,
+    Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, inject, signal, computed, ChangeDetectorRef,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -102,6 +102,12 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
     aiTransitions = signal<TransitionSuggestion[]>([]);
     aiFieldSuggestions = signal<FieldSuggestion[]>([]);
     aiCalled = signal(false);
+
+    /** Política publicada o archivada → solo lectura */
+    readonly isReadOnly = computed(() => {
+        const s = this.politica()?.status;
+        return s === 'PUBLISHED' || s === 'ARCHIVED';
+    });
     fieldTypes = [
         { label: 'Texto', value: 'TEXT' },
         { label: 'Número', value: 'NUMBER' },
@@ -167,8 +173,8 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
         } as any);
 
         // Load existing diagram
-        if (p.diagram && p.diagram.cells?.length) {
-            this.graph.fromJSON(p.diagram);
+        if (p.diagram && Array.isArray(p.diagram.cells) && p.diagram.cells.length) {
+            try { this.graph.fromJSON(p.diagram); } catch { /* diagrama vacío o incompatible */ }
         }
 
         // Events

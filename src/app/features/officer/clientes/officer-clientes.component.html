@@ -62,7 +62,7 @@
         <div class="grid grid-cols-2 gap-3">
             <div class="flex flex-col gap-2">
                 <label class="font-medium">Tipo documento *</label>
-                <p-select [options]="docTypes" [(ngModel)]="form.documentType" [disabled]="editMode" />
+                <p-select [options]="docTypes" [(ngModel)]="form.documentType" [disabled]="editMode" appendTo="body" />
             </div>
             <div class="flex flex-col gap-2">
                 <label class="font-medium">N° documento *</label>
