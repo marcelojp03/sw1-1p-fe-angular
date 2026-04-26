@@ -195,6 +195,7 @@ export interface TaskResponse {
     formResponse?: any;
     notes?: string;
     completedBy?: number;
+    attachmentUrls?: string[];
     createdAt: string;
     startedAt?: string;
     dueAt?: string;

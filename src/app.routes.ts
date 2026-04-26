@@ -14,11 +14,11 @@ export const appRoutes: Routes = [
         ]
     },
     {
-        path: '',
+        path: 'officer',
         component: AppLayout,
-        canActivate: [authGuard, roleGuard('ADMIN', 'OFFICER')],
+        canActivate: [authGuard, roleGuard('OFFICER')],
         children: [
-            { path: '', loadChildren: () => import('./app/features/sia/sia.routes') },
+            { path: '', loadChildren: () => import('./app/features/officer/officer.routes') },
         ]
     },
     { path: 'auth', loadChildren: () => import('./app/pages/auth/auth.routes') },

@@ -17,4 +17,5 @@ export interface CurrentUser {
     fullName: string;
     roles: string[];
     organizationId?: number;
+    areaId?: number;
 }

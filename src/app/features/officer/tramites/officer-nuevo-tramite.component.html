@@ -1,0 +1,46 @@
+<p-toast />
+
+<div class="card max-w-xl mx-auto">
+    <div class="flex items-center gap-3 mb-6">
+        <p-button icon="pi pi-arrow-left" severity="secondary" [text]="true" (onClick)="volver()" />
+        <div>
+            <h3 class="text-xl font-semibold text-surface-900 dark:text-surface-0 m-0">Iniciar Trámite</h3>
+            <p class="text-surface-400 text-sm mt-1 mb-0">Selecciona la política y el cliente para iniciar un nuevo trámite</p>
+        </div>
+    </div>
+
+    <div class="flex flex-col gap-5">
+        <div class="flex flex-col gap-2">
+            <label class="font-medium">Política de workflow *</label>
+            <p-select
+                [options]="policies()"
+                [(ngModel)]="selectedPolicyId"
+                optionLabel="name"
+                optionValue="id"
+                placeholder="Selecciona una política"
+                [loading]="loadingPolicies"
+                [filter]="true"
+                filterBy="name"
+                class="w-full" />
+        </div>
+
+        <div class="flex flex-col gap-2">
+            <label class="font-medium">Cliente *</label>
+            <p-select
+                [options]="clients()"
+                [(ngModel)]="selectedClientId"
+                optionLabel="fullName"
+                optionValue="id"
+                placeholder="Selecciona un cliente"
+                [loading]="loadingClients"
+                [filter]="true"
+                filterBy="fullName,documentNumber"
+                class="w-full" />
+        </div>
+
+        <div class="flex gap-3 mt-2">
+            <p-button label="Cancelar" icon="pi pi-times" severity="secondary" (onClick)="volver()" />
+            <p-button label="Iniciar Trámite" icon="pi pi-play" [loading]="saving" [disabled]="!canSubmit" (onClick)="iniciar()" />
+        </div>
+    </div>
+</div>

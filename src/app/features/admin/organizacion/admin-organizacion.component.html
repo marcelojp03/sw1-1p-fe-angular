@@ -1,0 +1,122 @@
+<p-toast />
+<p-confirmDialog />
+
+<div class="card" *ngIf="!loading; else spinner">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h3 class="text-xl font-semibold text-surface-900 dark:text-surface-0 m-0">Mi Organización</h3>
+            <p class="text-surface-400 text-sm mt-1 mb-0">Configura la información de tu organización y sus áreas</p>
+        </div>
+        @if (!editMode) {
+            <p-button label="Editar" icon="pi pi-pencil" severity="secondary" (onClick)="iniciarEdicion()" />
+        }
+    </div>
+
+    @if (org(); as o) {
+        <!-- Datos organización -->
+        @if (!editMode) {
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                <div>
+                    <label class="text-surface-400 text-sm">Nombre</label>
+                    <p class="font-semibold text-surface-800 dark:text-surface-100 mt-1">{{ o.name }}</p>
+                </div>
+                <div>
+                    <label class="text-surface-400 text-sm">Tipo de negocio</label>
+                    <p class="font-semibold text-surface-800 dark:text-surface-100 mt-1">{{ o.businessType }}</p>
+                </div>
+                <div>
+                    <label class="text-surface-400 text-sm">RUC / NIT</label>
+                    <p class="font-semibold text-surface-800 dark:text-surface-100 mt-1">{{ o.ruc || '—' }}</p>
+                </div>
+                <div>
+                    <label class="text-surface-400 text-sm">Estado</label>
+                    <div class="mt-1">
+                        <p-tag [value]="o.active ? 'Activo' : 'Inactivo'" [severity]="o.active ? 'success' : 'danger'" />
+                    </div>
+                </div>
+            </div>
+        } @else {
+            <!-- Form edición -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div class="flex flex-col gap-2">
+                    <label class="font-medium">Nombre *</label>
+                    <input pInputText [(ngModel)]="editNombre" />
+                </div>
+                <div class="flex flex-col gap-2">
+                    <label class="font-medium">Tipo de negocio *</label>
+                    <input pInputText [(ngModel)]="editBusinessType" />
+                </div>
+                <div class="flex flex-col gap-2">
+                    <label class="font-medium">RUC / NIT</label>
+                    <input pInputText [(ngModel)]="editRuc" />
+                </div>
+                <div class="flex flex-col gap-2">
+                    <label class="font-medium">Logo URL</label>
+                    <input pInputText [(ngModel)]="editLogoUrl" />
+                </div>
+            </div>
+            <div class="flex gap-2 mb-8">
+                <p-button label="Guardar" icon="pi pi-save" (onClick)="guardarOrg()" />
+                <p-button label="Cancelar" icon="pi pi-times" severity="secondary" (onClick)="cancelarEdicion()" />
+            </div>
+        }
+
+        <!-- Áreas -->
+        <div class="flex items-center justify-between mb-4">
+            <h4 class="text-lg font-semibold m-0">Áreas</h4>
+            <p-button label="Nueva Área" icon="pi pi-plus" size="small" (onClick)="nuevaArea()" />
+        </div>
+
+        <p-table [value]="o.areas" dataKey="id" styleClass="p-datatable-striped">
+            <ng-template #header>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Descripción</th>
+                    <th style="width:120px">Acciones</th>
+                </tr>
+            </ng-template>
+            <ng-template #body let-area>
+                <tr>
+                    <td>{{ area.name }}</td>
+                    <td>{{ area.description || '—' }}</td>
+                    <td>
+                        <div class="flex gap-1">
+                            <p-button icon="pi pi-pencil" size="small" severity="secondary" [rounded]="true" [text]="true" (onClick)="editarArea(area)" />
+                            <p-button icon="pi pi-trash" size="small" severity="danger" [rounded]="true" [text]="true" (onClick)="eliminarArea(area)" />
+                        </div>
+                    </td>
+                </tr>
+            </ng-template>
+            <ng-template #empty>
+                <tr><td colspan="3" class="text-center text-surface-400 py-4">No hay áreas registradas</td></tr>
+            </ng-template>
+        </p-table>
+    } @else {
+        <p class="text-surface-400">No se encontró la organización asociada a tu cuenta.</p>
+    }
+</div>
+
+<ng-template #spinner>
+    <div class="flex justify-center py-10">
+        <p-progressSpinner />
+    </div>
+</ng-template>
+
+<!-- Dialog área -->
+<p-dialog [(visible)]="areaDialogVisible" [header]="areaEdit ? 'Editar Área' : 'Nueva Área'" [modal]="true" [style]="{width:'420px'}">
+    <div class="flex flex-col gap-4 py-2">
+        <div class="flex flex-col gap-2">
+            <label class="font-medium">Nombre *</label>
+            <input pInputText [(ngModel)]="areaNombre" />
+        </div>
+        <div class="flex flex-col gap-2">
+            <label class="font-medium">Descripción</label>
+            <input pInputText [(ngModel)]="areaDescripcion" />
+        </div>
+    </div>
+    <ng-template #footer>
+        <p-button label="Cancelar" icon="pi pi-times" severity="secondary" (onClick)="areaDialogVisible=false" />
+        <p-button label="Guardar" icon="pi pi-save" [loading]="areaSaving" [disabled]="!areaNombre" (onClick)="guardarArea()" />
+    </ng-template>
+</p-dialog>
