@@ -32,6 +32,16 @@ export class MenuService {
                     { label: 'Monitoreo', icon: 'pi pi-fw pi-chart-bar', routerLink: ['/admin/monitoreo'] },
                 ]
             },
+            { separator: true },
+            {
+                label: 'Operación',
+                items: [
+                    { label: 'Clientes', icon: 'pi pi-fw pi-user', routerLink: ['/admin/clientes'] },
+                    { label: 'Iniciar Trámite', icon: 'pi pi-fw pi-play', routerLink: ['/admin/tramites/nuevo'] },
+                    { label: 'Trámites', icon: 'pi pi-fw pi-file', routerLink: ['/admin/tramites'] },
+                    { label: 'Bandeja de Tareas', icon: 'pi pi-fw pi-inbox', routerLink: ['/admin/tareas'] },
+                ]
+            },
         ];
     }
 
