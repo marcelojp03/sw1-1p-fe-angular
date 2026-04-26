@@ -23,5 +23,6 @@ export const appRoutes: Routes = [
     },
     { path: 'auth', loadChildren: () => import('./app/pages/auth/auth.routes') },
     { path: 'notfound', component: Notfound },
+    { path: '', redirectTo: '/auth/login', pathMatch: 'full' },
     { path: '**', redirectTo: '/notfound' }
 ];

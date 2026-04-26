@@ -29,8 +29,7 @@ export class MenuService {
                 label: 'Workflow',
                 items: [
                     { label: 'Políticas', icon: 'pi pi-fw pi-sitemap', routerLink: ['/admin/politicas'] },
-                    { label: 'Trámites', icon: 'pi pi-fw pi-file', routerLink: ['/admin/tramites'] },
-                    { label: 'Tareas', icon: 'pi pi-fw pi-check-square', routerLink: ['/admin/tareas'] },
+                    { label: 'Monitoreo', icon: 'pi pi-fw pi-chart-bar', routerLink: ['/admin/monitoreo'] },
                 ]
             },
         ];

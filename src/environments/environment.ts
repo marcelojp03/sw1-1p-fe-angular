@@ -5,7 +5,7 @@
 export const environment = {
   production: false,
   api: {
-    baseUrl: 'http://localhost:8080/api',
+    baseUrl: 'http://localhost:2804/api',
     timeout: 30000,
   },
   mock: false,

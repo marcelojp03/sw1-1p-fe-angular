@@ -61,8 +61,10 @@ export class Login implements OnInit {
                         this.router.navigateByUrl(returnUrl);
                     } else if (user?.roles.includes('ADMIN')) {
                         this.router.navigate(['/admin']);
+                    } else if (user?.roles.includes('OFFICER')) {
+                        this.router.navigate(['/officer']);
                     } else {
-                        this.router.navigate(['/']);
+                        this.router.navigate(['/auth/login']);
                     }
                 }, 1500);
             },

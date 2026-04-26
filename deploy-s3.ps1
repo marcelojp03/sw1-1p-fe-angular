@@ -1,13 +1,13 @@
-# SI2 SIA Frontend - Deploy to S3
-# Bucket: si2-sia-fe
+# SW1 1P Frontend - Deploy to S3
+# Bucket: sw1-1p-fe
 # Region: us-east-1
 
-$BucketName = "si2-sia-fe"
+$BucketName = "sw1-1p-fe"
 $BuildFolder = "dist/si2-sia/browser"
 $Region = "us-east-1"
 
 Write-Host "`n========================================" -ForegroundColor Cyan
-Write-Host "  SI2 SIA Frontend - Deploy S3" -ForegroundColor Cyan
+Write-Host "  SW1 1P Frontend - Deploy S3" -ForegroundColor Cyan
 Write-Host "========================================`n" -ForegroundColor Cyan
 
 # 1. Verificar AWS CLI

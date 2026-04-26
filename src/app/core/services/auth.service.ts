@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, BehaviorSubject, throwError } from 'rxjs';
-import { tap, catchError } from 'rxjs/operators';
+import { Observable, BehaviorSubject, throwError, of } from 'rxjs';
+import { tap, catchError, switchMap, map } from 'rxjs/operators';
 import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
 import { LoginRequest, LoginResponse, CurrentUser } from '../models/auth.model';
@@ -31,6 +31,22 @@ export class AuthService {
                 this.currentUserSubject.next(user);
                 this._userSignal.set(user);
             }),
+            switchMap((response) =>
+                this.http.get<any>(`${this.apiUrl}/auth/me`).pipe(
+                    tap((profile) => {
+                        const enriched: CurrentUser = {
+                            ...this.currentUserSubject.value!,
+                            organizationId: profile.organizationId ?? undefined,
+                            areaId: profile.areaId ?? undefined,
+                        };
+                        this.saveUser(enriched);
+                        this.currentUserSubject.next(enriched);
+                        this._userSignal.set(enriched);
+                    }),
+                    map(() => response),
+                    catchError(() => of(response))
+                )
+            ),
             catchError((error) => {
                 console.error('[AuthService] Error en login:', error);
                 return throwError(() => error);

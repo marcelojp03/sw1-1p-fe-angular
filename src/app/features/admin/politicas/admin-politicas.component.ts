@@ -1,5 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterModule } from '@angular/router';
+import { Router } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MessageService, ConfirmationService } from 'primeng/api';
@@ -11,9 +12,12 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
 import { InputTextModule } from 'primeng/inputtext';
+import { DialogModule } from 'primeng/dialog';
+import { TextareaModule } from 'primeng/textarea';
+import { MultiSelectModule } from 'primeng/multiselect';
 import { PoliticaService } from './politicas.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { PolicySummaryResponse } from './politica.model';
+import { PolicySummaryResponse, CreatePolicyRequest } from './politica.model';
 
 @Component({
     selector: 'app-admin-politicas',
@@ -22,6 +26,7 @@ import { PolicySummaryResponse } from './politica.model';
         RouterModule, DatePipe, FormsModule, ToastModule, ButtonModule,
         TableModule, TagModule, ConfirmDialogModule,
         IconFieldModule, InputIconModule, InputTextModule,
+        DialogModule, TextareaModule, MultiSelectModule,
     ],
     providers: [MessageService, ConfirmationService],
     templateUrl: './admin-politicas.component.html',
@@ -31,11 +36,53 @@ export class AdminPoliticasComponent implements OnInit {
     private auth = inject(AuthService);
     private message = inject(MessageService);
     private confirm = inject(ConfirmationService);
+    private router = inject(Router);
 
     politicas = signal<PolicySummaryResponse[]>([]);
     loading = true;
 
+    // Dialog nueva política
+    nuevoDialogVisible = false;
+    saving = signal(false);
+    nuevoForm: Partial<CreatePolicyRequest> = { policyKey: '', name: '', description: '', allowedStartChannels: [] };
+
+    channels = [
+        { label: 'Web', value: 'WEB' },
+        { label: 'Móvil', value: 'MOBILE' },
+        { label: 'API', value: 'API' },
+        { label: 'Presencial', value: 'IN_PERSON' },
+    ];
+
     ngOnInit(): void { this.load(); }
+
+    abrirNuevoDialog(): void {
+        this.nuevoForm = { policyKey: '', name: '', description: '', allowedStartChannels: [] };
+        this.nuevoDialogVisible = true;
+    }
+
+    crearPolitica(): void {
+        const orgId = this.auth.currentUserSignal()?.organizationId;
+        if (!orgId) return;
+        const body: CreatePolicyRequest = {
+            organizationId: orgId,
+            policyKey: this.nuevoForm.policyKey!,
+            name: this.nuevoForm.name!,
+            description: this.nuevoForm.description,
+            allowedStartChannels: this.nuevoForm.allowedStartChannels,
+        };
+        this.saving.set(true);
+        this.politicaService.create(body).subscribe({
+            next: (p) => {
+                this.saving.set(false);
+                this.nuevoDialogVisible = false;
+                this.router.navigate(['/admin/politicas', p.id, 'editar']);
+            },
+            error: () => {
+                this.saving.set(false);
+                this.message.add({ severity: 'error', summary: 'Error', detail: 'No se pudo crear la política' });
+            },
+        });
+    }
 
     load(): void {
         const orgId = this.auth.currentUserSignal()?.organizationId;
