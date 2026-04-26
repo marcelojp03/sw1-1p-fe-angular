@@ -91,10 +91,13 @@ export class AdminDashboardComponent implements OnInit {
     cargarPoliticas(): void {
         const orgId = this.authService.currentUserSignal()?.organizationId;
         if (!orgId) return;
-        this.http.get<any[]>(`${environment.api.baseUrl}/workflow-policies`, {
-            params: { organizationId: String(orgId), status: 'PUBLISHED' },
+        this.http.get<any>(`${environment.api.baseUrl}/policies`, {
+            params: { organizationId: String(orgId) },
         }).subscribe({
-            next: (data) => this.policies.set(data.map(p => ({ id: p.id, name: p.name }))),
+            next: (data) => {
+                const items: any[] = Array.isArray(data) ? data : (data.content ?? []);
+                this.policies.set(items.map(p => ({ id: p.id, name: p.name })));
+            },
         });
     }
 

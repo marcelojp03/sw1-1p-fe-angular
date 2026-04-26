@@ -9,7 +9,7 @@ export class TaskService {
     private http = inject(HttpClient);
     private base = `${environment.api.baseUrl}/tasks`;
 
-    listByArea(areaId: number): Observable<TaskResponse[]> {
+    listByArea(areaId: string): Observable<TaskResponse[]> {
         const params = new HttpParams().set('areaId', areaId);
         return this.http.get<TaskResponse[]>(this.base, { params });
     }
@@ -18,19 +18,19 @@ export class TaskService {
         return this.http.get<TaskResponse[]>(`${this.base}/mine`);
     }
 
-    get(id: number): Observable<TaskResponse> {
+    get(id: string): Observable<TaskResponse> {
         return this.http.get<TaskResponse>(`${this.base}/${id}`);
     }
 
-    claim(id: number): Observable<TaskResponse> {
+    claim(id: string): Observable<TaskResponse> {
         return this.http.post<TaskResponse>(`${this.base}/${id}/claim`, {});
     }
 
-    complete(id: number, body: CompleteTaskRequest): Observable<TaskResponse> {
+    complete(id: string, body: CompleteTaskRequest): Observable<TaskResponse> {
         return this.http.post<TaskResponse>(`${this.base}/${id}/complete`, body);
     }
 
-    uploadAttachments(id: number, files: File[]): Observable<TaskResponse> {
+    uploadAttachments(id: string, files: File[]): Observable<TaskResponse> {
         const formData = new FormData();
         files.forEach(f => formData.append('files', f));
         return this.http.post<TaskResponse>(`${this.base}/${id}/attachments`, formData);

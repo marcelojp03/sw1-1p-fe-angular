@@ -12,10 +12,10 @@ export interface LoginResponse {
 }
 
 export interface CurrentUser {
-    id: number;
+    id: string;
     email: string;
     fullName: string;
     roles: string[];
-    organizationId?: number;
-    areaId?: number;
+    organizationId?: string;
+    areaId?: string;
 }

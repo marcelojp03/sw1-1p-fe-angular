@@ -1,5 +1,5 @@
 export interface CreateClientRequest {
-    organizationId: number;
+    organizationId: string;
     fullName: string;
     documentType: string;
     documentNumber: string;
@@ -16,15 +16,15 @@ export interface UpdateClientRequest {
 }
 
 export interface ClientResponse {
-    id: number;
-    organizationId: number;
+    id: string;
+    organizationId: string;
     fullName: string;
     documentType: string;
     documentNumber: string;
     phone?: string;
     email?: string;
     address?: string;
-    userId?: number;
-    createdBy?: number;
+    userId?: string;
+    createdBy?: string;
     createdAt: string;
 }

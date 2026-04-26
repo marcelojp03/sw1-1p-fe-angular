@@ -123,7 +123,7 @@ export class AuthService {
     private buildUserFromResponse(response: LoginResponse): CurrentUser {
         const payload = this.getTokenPayload(response.token);
         return {
-            id: response.userId,
+            id: String(response.userId),
             email: response.email,
             fullName: response.fullName,
             roles: response.roles,

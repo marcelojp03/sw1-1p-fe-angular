@@ -31,7 +31,7 @@ export class OfficerTramitesComponent implements OnInit {
     ngOnInit(): void { this.load(); }
 
     load(): void {
-        const orgId = this.auth.currentUserSignal()?.organizationId ?? 0;
+        const orgId = this.auth.currentUserSignal()?.organizationId ?? '';
         this.procedureService.list(orgId).subscribe({
             next: (list) => { this.tramites.set(list); this.loading = false; },
             error: () => { this.loading = false; this.message.add({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar los trámites' }); }

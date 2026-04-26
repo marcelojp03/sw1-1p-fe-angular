@@ -36,7 +36,7 @@ export class OfficerTramiteDetalleComponent implements OnInit {
     historial = signal<ProcedureHistory[]>([]);
 
     ngOnInit(): void {
-        const id = Number(this.route.snapshot.paramMap.get('id'));
+        const id = this.route.snapshot.paramMap.get('id') ?? '';
 
         this.procedureService.get(id).subscribe({
             next: (p) => { this.tramite.set(p); this.loading.set(false); },

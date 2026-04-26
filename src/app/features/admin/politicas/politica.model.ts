@@ -1,5 +1,5 @@
 export interface CreatePolicyRequest {
-    organizationId: number;
+    organizationId: string;
     policyKey: string;
     name: string;
     description?: string;
@@ -7,8 +7,8 @@ export interface CreatePolicyRequest {
 }
 
 export interface PolicySummaryResponse {
-    id: number;
-    organizationId: number;
+    id: string;
+    organizationId: string;
     policyKey: string;
     name: string;
     version: number;

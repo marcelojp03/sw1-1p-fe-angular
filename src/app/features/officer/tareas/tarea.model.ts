@@ -1,20 +1,20 @@
 export interface TaskResponse {
-    id: number;
-    procedureId: number;
+    id: string;
+    procedureId: string;
     procedureCode: string;
-    policyId: number;
+    policyId: string;
     nodeId: string;
     label: string;
-    organizationId: number;
-    assignedAreaId: number;
+    organizationId: string;
+    assignedAreaId: string;
     taskAudience: string;
     status: string;
-    assignedUserId?: number;
-    assignedClientId?: number;
+    assignedUserId?: string;
+    assignedClientId?: string;
     form?: any;
     formResponse?: any;
     notes?: string;
-    completedBy?: number;
+    completedBy?: string;
     attachmentUrls?: string[];
     createdAt: string;
     startedAt?: string;

@@ -49,7 +49,7 @@ export class AdminUsuariosComponent implements OnInit {
 
     editarVisible = false;
     editForm: UpdateUserRequest = { fullName: '', email: '', roles: [] };
-    editId = 0;
+    editId = '';
 
     @ViewChild('dt') dt!: Table;
 

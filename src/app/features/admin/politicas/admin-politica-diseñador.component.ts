@@ -114,7 +114,7 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
 
     private graph!: joint.dia.Graph;
     private paper!: joint.dia.Paper;
-    private policyId!: number;
+    private policyId!: string;
     private stompClient?: Client;
     private wsUrl = environment.api.baseUrl.replace('/api', '') + '/ws';
     private isReceivingPatch = false;
@@ -132,7 +132,7 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
     ];
 
     ngOnInit(): void {
-        this.policyId = Number(this.route.snapshot.paramMap.get('id'));
+        this.policyId = this.route.snapshot.paramMap.get('id') ?? '';
         this.politicaService.get(this.policyId).subscribe({
             next: (p) => { this.politica.set(p); this.loading.set(false); this.cdr.detectChanges(); setTimeout(() => this.initCanvas(p), 0); },
             error: () => { this.loading.set(false); this.message.add({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar la política' }); },
@@ -449,8 +449,8 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
         this.stompClient.activate();
     }
 
-    private get orgId(): number {
-        return this.auth.currentUserSignal()?.organizationId ?? 0;
+    private get orgId(): string {
+        return this.auth.currentUserSignal()?.organizationId ?? '';
     }
 
     abrirDialogoAI(): void {

@@ -6,14 +6,14 @@ export interface CreateOrganizationRequest {
 }
 
 export interface AreaResponse {
-    id: number;
+    id: string;
     name: string;
     description?: string;
-    organizationId: number;
+    organizationId: string;
 }
 
 export interface OrganizationResponse {
-    id: number;
+    id: string;
     name: string;
     businessType: string;
     ruc?: string;

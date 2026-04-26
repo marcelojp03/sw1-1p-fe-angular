@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { environment } from '../../../../environments/environment';
 import {
     PolicySummaryResponse,
@@ -14,17 +15,21 @@ export class PoliticaService {
     private http = inject(HttpClient);
     private base = `${environment.api.baseUrl}/policies`;
 
-    list(organizationId: number): Observable<PolicySummaryResponse[]> {
+    list(organizationId: string): Observable<PolicySummaryResponse[]> {
         const params = new HttpParams().set('organizationId', organizationId);
-        return this.http.get<PolicySummaryResponse[]>(this.base, { params });
+        return this.http.get<any>(this.base, { params }).pipe(
+            map((r) => (Array.isArray(r) ? r : (r.content ?? [])))
+        );
     }
 
-    listPublished(organizationId: number): Observable<PolicySummaryResponse[]> {
+    listPublished(organizationId: string): Observable<PolicySummaryResponse[]> {
         const params = new HttpParams().set('organizationId', organizationId).set('status', 'PUBLISHED');
-        return this.http.get<PolicySummaryResponse[]>(this.base, { params });
+        return this.http.get<any>(this.base, { params }).pipe(
+            map((r) => (Array.isArray(r) ? r : (r.content ?? [])))
+        );
     }
 
-    get(id: number): Observable<PolicyResponse> {
+    get(id: string): Observable<PolicyResponse> {
         return this.http.get<PolicyResponse>(`${this.base}/${id}`);
     }
 
@@ -32,19 +37,19 @@ export class PoliticaService {
         return this.http.post<PolicyResponse>(this.base, body);
     }
 
-    updateDiagram(id: number, body: DiagramUpdateRequest): Observable<PolicyResponse> {
+    updateDiagram(id: string, body: DiagramUpdateRequest): Observable<PolicyResponse> {
         return this.http.put<PolicyResponse>(`${this.base}/${id}/diagram`, body);
     }
 
-    publish(id: number): Observable<PolicyResponse> {
+    publish(id: string): Observable<PolicyResponse> {
         return this.http.post<PolicyResponse>(`${this.base}/${id}/publish`, {});
     }
 
-    archive(id: number): Observable<PolicyResponse> {
+    archive(id: string): Observable<PolicyResponse> {
         return this.http.post<PolicyResponse>(`${this.base}/${id}/archive`, {});
     }
 
-    newVersion(organizationId: number, policyKey: string): Observable<PolicyResponse> {
+    newVersion(organizationId: string, policyKey: string): Observable<PolicyResponse> {
         const params = new HttpParams()
             .set('organizationId', organizationId)
             .set('policyKey', policyKey);

@@ -14,13 +14,13 @@ export class ProcedureService {
     private http = inject(HttpClient);
     private base = `${environment.api.baseUrl}/procedures`;
 
-    list(organizationId: number, status?: string): Observable<ProcedureSummaryResponse[]> {
+    list(organizationId: string, status?: string): Observable<ProcedureSummaryResponse[]> {
         let params = new HttpParams().set('organizationId', organizationId);
         if (status) params = params.set('status', status);
         return this.http.get<ProcedureSummaryResponse[]>(this.base, { params });
     }
 
-    get(id: number): Observable<ProcedureResponse> {
+    get(id: string): Observable<ProcedureResponse> {
         return this.http.get<ProcedureResponse>(`${this.base}/${id}`);
     }
 
@@ -28,7 +28,7 @@ export class ProcedureService {
         return this.http.post<ProcedureResponse>(this.base, body);
     }
 
-    getHistory(id: number): Observable<ProcedureHistory[]> {
+    getHistory(id: string): Observable<ProcedureHistory[]> {
         return this.http.get<ProcedureHistory[]>(`${this.base}/${id}/history`);
     }
 }

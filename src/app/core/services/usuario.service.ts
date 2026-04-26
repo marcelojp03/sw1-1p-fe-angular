@@ -1,8 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { environment } from '../../../../environments/environment';
-import { UserResponse, RegisterRequest, UpdateUserRequest } from './usuario.model';
+import { environment } from '../../../environments/environment';
+import { UserResponse, RegisterRequest, UpdateUserRequest } from '../../features/admin/usuarios/usuario.model';
 
 @Injectable({ providedIn: 'root' })
 export class UsuarioService {
@@ -14,7 +14,7 @@ export class UsuarioService {
         return this.http.get<any>(`${this.base}/users`, { params });
     }
 
-    obtener(id: string): Observable<UserResponse> {
+    obtener(id: number): Observable<UserResponse> {
         return this.http.get<UserResponse>(`${this.base}/users/${id}`);
     }
 
@@ -22,17 +22,17 @@ export class UsuarioService {
         return this.http.post<UserResponse>(`${this.base}/auth/register`, body);
     }
 
-    actualizar(id: string, body: UpdateUserRequest): Observable<UserResponse> {
+    actualizar(id: number, body: UpdateUserRequest): Observable<UserResponse> {
         return this.http.put<UserResponse>(`${this.base}/users/${id}`, body);
     }
 
-    cambiarEstado(id: string, active: boolean): Observable<UserResponse> {
+    cambiarEstado(id: number, active: boolean): Observable<UserResponse> {
         return this.http.patch<UserResponse>(`${this.base}/users/${id}/status`, null, {
             params: new HttpParams().set('active', active)
         });
     }
 
-    eliminar(id: string): Observable<void> {
+    eliminar(id: number): Observable<void> {
         return this.http.delete<void>(`${this.base}/users/${id}`);
     }
 }

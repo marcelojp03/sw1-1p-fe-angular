@@ -43,7 +43,7 @@ export class AdminOrganizacionComponent implements OnInit {
     // Áreas
     areaDialogVisible = false;
     areaEdit = false;
-    areaId: number | null = null;
+    areaId: string | null = null;
     areaNombre = '';
     areaDescripcion = '';
     areaSaving = false;

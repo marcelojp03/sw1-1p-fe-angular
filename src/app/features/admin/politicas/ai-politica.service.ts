@@ -16,17 +16,17 @@ export class AiPoliticaService {
     private http = inject(HttpClient);
     private base = `${environment.api.baseUrl}/ai`;
 
-    suggestWorkflow(req: SuggestWorkflowRequest, organizationId: number): Observable<SuggestWorkflowResponse> {
+    suggestWorkflow(req: SuggestWorkflowRequest, organizationId: string): Observable<SuggestWorkflowResponse> {
         const params = new HttpParams().set('organizationId', organizationId);
         return this.http.post<SuggestWorkflowResponse>(`${this.base}/suggest-workflow`, req, { params });
     }
 
-    suggestFormFields(req: SuggestFormFieldsRequest, organizationId: number): Observable<SuggestFormFieldsResponse> {
+    suggestFormFields(req: SuggestFormFieldsRequest, organizationId: string): Observable<SuggestFormFieldsResponse> {
         const params = new HttpParams().set('organizationId', organizationId);
         return this.http.post<SuggestFormFieldsResponse>(`${this.base}/suggest-form-fields`, req, { params });
     }
 
-    analyzeBottlenecks(req: AnalyzeBottlenecksRequest, organizationId: number): Observable<AnalyzeBottlenecksResponse> {
+    analyzeBottlenecks(req: AnalyzeBottlenecksRequest, organizationId: string): Observable<AnalyzeBottlenecksResponse> {
         const params = new HttpParams().set('organizationId', organizationId);
         return this.http.post<AnalyzeBottlenecksResponse>(`${this.base}/analyze-bottlenecks`, req, { params });
     }

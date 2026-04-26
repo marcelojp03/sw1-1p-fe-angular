@@ -9,16 +9,16 @@ export class ClientService {
     private http = inject(HttpClient);
     private base = `${environment.api.baseUrl}/clients`;
 
-    list(organizationId: number): Observable<ClientResponse[]> {
+    list(organizationId: string): Observable<ClientResponse[]> {
         const params = new HttpParams().set('organizationId', organizationId);
         return this.http.get<ClientResponse[]>(this.base, { params });
     }
 
-    get(id: number): Observable<ClientResponse> {
+    get(id: string): Observable<ClientResponse> {
         return this.http.get<ClientResponse>(`${this.base}/${id}`);
     }
 
-    search(documentNumber: string, organizationId: number): Observable<ClientResponse> {
+    search(documentNumber: string, organizationId: string): Observable<ClientResponse> {
         const params = new HttpParams()
             .set('documentNumber', documentNumber)
             .set('organizationId', organizationId);
@@ -29,7 +29,7 @@ export class ClientService {
         return this.http.post<ClientResponse>(this.base, body);
     }
 
-    update(id: number, body: UpdateClientRequest): Observable<ClientResponse> {
+    update(id: string, body: UpdateClientRequest): Observable<ClientResponse> {
         return this.http.put<ClientResponse>(`${this.base}/${id}`, body);
     }
 }

@@ -1,13 +1,13 @@
 export interface UserResponse {
-    id: number;
+    id: string;
     email: string;
     fullName: string;
     roles: string[];
     positionName?: string;
     phone?: string;
-    areaId?: number;
-    organizationId?: number;
-    clientId?: number;
+    areaId?: string;
+    organizationId?: string;
+    clientId?: string;
     active: boolean;
 }
 
@@ -18,8 +18,8 @@ export interface RegisterRequest {
     roles: string[];
     positionName?: string;
     phone?: string;
-    areaId?: number;
-    organizationId?: number;
+    areaId?: string;
+    organizationId?: string;
 }
 
 export interface UpdateUserRequest {
@@ -28,6 +28,6 @@ export interface UpdateUserRequest {
     phone?: string;
     positionName?: string;
     roles: string[];
-    organizationId?: number;
-    areaId?: number;
+    organizationId?: string;
+    areaId?: string;
 }

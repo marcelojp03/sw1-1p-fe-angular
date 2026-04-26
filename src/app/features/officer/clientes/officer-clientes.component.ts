@@ -37,19 +37,19 @@ export class OfficerClientesComponent implements OnInit {
     dialogVisible = false;
     editMode = false;
     saving = false;
-    editId: number | null = null;
+    editId: string | null = null;
 
     docTypes = DOCUMENT_TYPES;
     form: CreateClientRequest = this.emptyForm();
 
     ngOnInit(): void { this.load(); }
 
-    private get orgId(): number {
-        return this.auth.currentUserSignal()?.organizationId ?? 0;
+    private get orgId(): string {
+        return this.auth.currentUserSignal()?.organizationId ?? '';
     }
 
     private emptyForm(): CreateClientRequest {
-        return { organizationId: 0, fullName: '', documentType: 'CI', documentNumber: '', phone: '', email: '', address: '' };
+        return { organizationId: '', fullName: '', documentType: 'CI', documentNumber: '', phone: '', email: '', address: '' };
     }
 
     load(): void {

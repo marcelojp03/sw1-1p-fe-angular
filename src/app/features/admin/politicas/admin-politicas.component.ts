@@ -103,7 +103,7 @@ export class AdminPoliticasComponent implements OnInit {
         });
     }
 
-    publicar(id: number): void {
+    publicar(id: string): void {
         this.politicaService.publish(id).subscribe({
             next: () => { this.message.add({ severity: 'success', summary: 'Publicada', detail: 'Política publicada' }); this.load(); },
             error: () => this.message.add({ severity: 'error', summary: 'Error', detail: 'No se pudo publicar' }),
@@ -119,7 +119,7 @@ export class AdminPoliticasComponent implements OnInit {
         });
     }
 
-    archivar(id: number): void {
+    archivar(id: string): void {
         this.politicaService.archive(id).subscribe({
             next: () => { this.message.add({ severity: 'success', summary: 'Archivada', detail: 'Política archivada' }); this.load(); },
             error: () => this.message.add({ severity: 'error', summary: 'Error', detail: 'No se pudo archivar' }),

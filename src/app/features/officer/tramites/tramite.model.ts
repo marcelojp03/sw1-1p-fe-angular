@@ -1,14 +1,14 @@
 export interface StartProcedureRequest {
-    policyId: number;
-    clientId: number;
-    organizationId: number;
+    policyId: string;
+    clientId: string;
+    organizationId: string;
 }
 
 export interface ProcedureSummaryResponse {
-    id: number;
+    id: string;
     code: string;
-    organizationId: number;
-    clientId: number;
+    organizationId: string;
+    clientId: string;
     currentNodeIds: string[];
     status: string;
     policyName: string;
@@ -18,13 +18,13 @@ export interface ProcedureSummaryResponse {
 }
 
 export interface ProcedureResponse {
-    id: number;
+    id: string;
     code: string;
-    organizationId: number;
-    policyId: number;
+    organizationId: string;
+    policyId: string;
     policyVersion: number;
-    clientId: number;
-    startedBy: number;
+    clientId: string;
+    startedBy: string;
     requester?: any;
     currentNodeIds: string[];
     status: string;

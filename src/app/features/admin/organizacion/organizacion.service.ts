@@ -18,7 +18,7 @@ export class OrganizationService {
         return this.http.get<OrganizationResponse[]>(this.base);
     }
 
-    get(id: number): Observable<OrganizationResponse> {
+    get(id: string): Observable<OrganizationResponse> {
         return this.http.get<OrganizationResponse>(`${this.base}/${id}`);
     }
 
@@ -26,24 +26,24 @@ export class OrganizationService {
         return this.http.post<OrganizationResponse>(this.base, body);
     }
 
-    update(id: number, body: Partial<CreateOrganizationRequest>): Observable<OrganizationResponse> {
+    update(id: string, body: Partial<CreateOrganizationRequest>): Observable<OrganizationResponse> {
         return this.http.put<OrganizationResponse>(`${this.base}/${id}`, body);
     }
 
-    delete(id: number): Observable<void> {
+    delete(id: string): Observable<void> {
         return this.http.delete<void>(`${this.base}/${id}`);
     }
 
     // Areas
-    createArea(orgId: number, body: CreateAreaRequest): Observable<OrganizationResponse> {
+    createArea(orgId: string, body: CreateAreaRequest): Observable<OrganizationResponse> {
         return this.http.post<OrganizationResponse>(`${this.base}/${orgId}/areas`, body);
     }
 
-    deleteArea(orgId: number, areaId: number): Observable<void> {
+    deleteArea(orgId: string, areaId: string): Observable<void> {
         return this.http.delete<void>(`${this.base}/${orgId}/areas/${areaId}`);
     }
 
-    updateArea(orgId: number, areaId: number, body: CreateAreaRequest): Observable<AreaResponse> {
+    updateArea(orgId: string, areaId: string, body: CreateAreaRequest): Observable<AreaResponse> {
         return this.http.put<AreaResponse>(`${this.base}/${orgId}/areas/${areaId}`, body);
     }
 }

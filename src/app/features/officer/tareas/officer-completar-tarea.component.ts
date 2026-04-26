@@ -46,7 +46,7 @@ export class OfficerCompletarTareaComponent implements OnInit {
     observacionTexto = '';
 
     ngOnInit(): void {
-        const id = Number(this.route.snapshot.paramMap.get('id'));
+        const id = this.route.snapshot.paramMap.get('id') ?? '';
         this.taskService.get(id).subscribe({
             next: (t) => {
                 this.tarea.set(t);

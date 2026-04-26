@@ -35,11 +35,11 @@ export class OfficerNuevoTramiteComponent implements OnInit {
     loadingClients = true;
     saving = false;
 
-    selectedPolicyId: number | null = null;
-    selectedClientId: number | null = null;
+    selectedPolicyId: string | null = null;
+    selectedClientId: string | null = null;
 
     ngOnInit(): void {
-        const orgId = this.auth.currentUserSignal()?.organizationId ?? 0;
+        const orgId = this.auth.currentUserSignal()?.organizationId ?? '';
         this.policyService.listPublished(orgId).subscribe({
             next: (p) => { this.policies.set(p); this.loadingPolicies = false; },
             error: () => { this.loadingPolicies = false; }
@@ -55,7 +55,7 @@ export class OfficerNuevoTramiteComponent implements OnInit {
     }
 
     iniciar(): void {
-        const orgId = this.auth.currentUserSignal()?.organizationId ?? 0;
+        const orgId = this.auth.currentUserSignal()?.organizationId ?? '';
         this.saving = true;
         this.procedureService.start({
             policyId: this.selectedPolicyId!,
