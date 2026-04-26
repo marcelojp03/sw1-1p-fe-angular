@@ -1,0 +1,94 @@
+<p-toast />
+<p-confirmDialog />
+
+<div class="card">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h3 class="text-xl font-semibold text-surface-900 dark:text-surface-0 m-0">Inscripciones</h3>
+            <p class="text-surface-400 text-sm mt-1 mb-0">Inscripción de estudiantes a cursos y paralelos</p>
+        </div>
+        <p-button label="Nueva Inscripción" icon="pi pi-plus" (onClick)="nueva()" />
+    </div>
+
+    <!-- Table -->
+    <p-table #dt [value]="inscripciones()" [loading]="loading" dataKey="id"
+        [globalFilterFields]="['idEstudiante','idCurso','idParalelo','estado']"
+        [paginator]="true" [rows]="10" [rowsPerPageOptions]="[10,25,50]"
+        styleClass="p-datatable-striped">
+
+        <ng-template #caption>
+            <p-iconfield>
+                <p-inputicon class="pi pi-search" />
+                <input pInputText type="text" placeholder="Buscar inscripción..." (input)="onGlobalFilter(dt, $event)" />
+            </p-iconfield>
+        </ng-template>
+
+        <ng-template #header>
+            <tr>
+                <th>Estudiante</th>
+                <th>Gestión</th>
+                <th>Curso</th>
+                <th>Paralelo</th>
+                <th pSortableColumn="estado">Estado <p-sortIcon field="estado" /></th>
+                <th class="w-28">Acciones</th>
+            </tr>
+        </ng-template>
+
+        <ng-template #body let-i>
+            <tr>
+                <td class="font-medium">{{ getNombreEstudiante(i.idEstudiante) }}</td>
+                <td>{{ getNombreGestion(i.idGestion) }}</td>
+                <td>{{ getNombreCurso(i.idCurso) }}</td>
+                <td>{{ getNombreParalelo(i.idParalelo) }}</td>
+                <td>
+                    <p-tag [value]="i.estado" [severity]="i.estado === 'ACTIVO' ? 'success' : 'danger'" />
+                </td>
+                <td>
+                    <p-button icon="pi pi-trash" [rounded]="true" [text]="true" severity="danger"
+                        pTooltip="Eliminar" tooltipPosition="top" (onClick)="confirmarEliminar(i)" />
+                </td>
+            </tr>
+        </ng-template>
+
+        <ng-template #emptymessage>
+            <tr><td colspan="6" class="text-center py-8 text-surface-400">No hay inscripciones registradas</td></tr>
+        </ng-template>
+    </p-table>
+</div>
+
+<!-- Dialog nueva inscripción -->
+<p-dialog [(visible)]="dialogVisible" header="Nueva Inscripción"
+    [modal]="true" [style]="{width: '480px'}" [draggable]="false">
+
+    <div class="flex flex-col gap-4 pt-2">
+        <div class="flex flex-col gap-1">
+            <label class="font-medium text-sm">Estudiante <span class="text-red-500">*</span></label>
+            <p-select [options]="estudiantesOptions" [(ngModel)]="form.idEstudiante"
+                placeholder="Seleccionar estudiante" [filter]="true" filterPlaceholder="Buscar..." appendTo="body" />
+        </div>
+        <div class="flex flex-col gap-1">
+            <label class="font-medium text-sm">Gestión Académica <span class="text-red-500">*</span></label>
+            <p-select [options]="gestionesOptions" [(ngModel)]="form.idGestion"
+                placeholder="Seleccionar gestión" [filter]="true"
+                (onChange)="onCursoChange()" appendTo="body" />
+        </div>
+        <div class="flex flex-col gap-1">
+            <label class="font-medium text-sm">Curso <span class="text-red-500">*</span></label>
+            <p-select [options]="cursosOptions" [(ngModel)]="form.idCurso"
+                placeholder="Seleccionar curso" [filter]="true"
+                (onChange)="onCursoChange()" appendTo="body" />
+        </div>
+        <div class="flex flex-col gap-1">
+            <label class="font-medium text-sm">Paralelo <span class="text-red-500">*</span></label>
+            <p-select [options]="paralelosOptions" [(ngModel)]="form.idParalelo"
+                placeholder="Seleccionar paralelo"
+                [disabled]="!form.idCurso || !form.idGestion" appendTo="body" />
+        </div>
+    </div>
+
+    <ng-template #footer>
+        <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary" (onClick)="dialogVisible = false" />
+        <p-button label="Inscribir" icon="pi pi-check" (onClick)="guardar()" />
+    </ng-template>
+</p-dialog>

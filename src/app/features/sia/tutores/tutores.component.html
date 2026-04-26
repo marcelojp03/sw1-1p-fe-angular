@@ -1,0 +1,151 @@
+<p-toast />
+<p-confirmDialog />
+
+<div class="card">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h3 class="text-xl font-semibold text-surface-900 dark:text-surface-0 m-0">Tutores</h3>
+            <p class="text-surface-400 text-sm mt-1 mb-0">Gestiona los tutores y su vínculo con estudiantes</p>
+        </div>
+        <p-button label="Nuevo Tutor" icon="pi pi-plus" (onClick)="nuevo()" />
+    </div>
+
+    <!-- Table -->
+    <p-table #dt [value]="tutores()" [loading]="loading" dataKey="id"
+        [globalFilterFields]="['nombres','apellidos','documentoIdentidad','correo']"
+        [paginator]="true" [rows]="10" [rowsPerPageOptions]="[10,25,50]"
+        sortField="apellidos" [sortOrder]="1"
+        styleClass="p-datatable-striped">
+
+        <ng-template #caption>
+            <p-iconfield>
+                <p-inputicon class="pi pi-search" />
+                <input pInputText type="text" placeholder="Buscar tutor..." (input)="onGlobalFilter(dt, $event)" />
+            </p-iconfield>
+        </ng-template>
+
+        <ng-template #header>
+            <tr>
+                <th pSortableColumn="apellidos">Nombre <p-sortIcon field="apellidos" /></th>
+                <th>C.I.</th>
+                <th>Correo</th>
+                <th>Teléfono</th>
+                <th pSortableColumn="estado">Estado <p-sortIcon field="estado" /></th>
+                <th class="w-36">Acciones</th>
+            </tr>
+        </ng-template>
+
+        <ng-template #body let-t>
+            <tr>
+                <td class="font-medium">{{ t.apellidos }}, {{ t.nombres }}</td>
+                <td>{{ t.documentoIdentidad }}</td>
+                <td>{{ t.correo || '-' }}</td>
+                <td>{{ t.telefono || '-' }}</td>
+                <td>
+                    <p-tag [value]="t.estado" [severity]="t.estado === 'ACTIVO' ? 'success' : 'danger'" />
+                </td>
+                <td>
+                    <div class="flex gap-2">
+                        <p-button icon="pi pi-link" [rounded]="true" [text]="true" severity="secondary"
+                            pTooltip="Estudiantes vinculados" tooltipPosition="top" (onClick)="abrirVinculos(t)" />
+                        <p-button icon="pi pi-pencil" [rounded]="true" [text]="true" severity="info"
+                            pTooltip="Editar" tooltipPosition="top" (onClick)="editar(t)" />
+                        <p-button icon="pi pi-trash" [rounded]="true" [text]="true" severity="danger"
+                            pTooltip="Eliminar" tooltipPosition="top" (onClick)="confirmarEliminar(t)" />
+                    </div>
+                </td>
+            </tr>
+        </ng-template>
+
+        <ng-template #emptymessage>
+            <tr><td colspan="6" class="text-center py-8 text-surface-400">No hay tutores registrados</td></tr>
+        </ng-template>
+    </p-table>
+</div>
+
+<!-- Dialog CRUD -->
+<p-dialog [(visible)]="dialogVisible"
+    [header]="editMode ? 'Editar Tutor' : 'Nuevo Tutor'"
+    [modal]="true" [style]="{width: '520px'}" [draggable]="false">
+
+    <div class="flex flex-col gap-4 pt-2">
+        <div class="flex flex-col gap-1">
+            <label class="font-medium text-sm">C.I. / Documento <span class="text-red-500">*</span></label>
+            <input pInputText [(ngModel)]="form.documentoIdentidad" placeholder="Ej: 1234567" />
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Nombres <span class="text-red-500">*</span></label>
+                <input pInputText [(ngModel)]="form.nombres" placeholder="Ej: María" />
+            </div>
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Apellidos <span class="text-red-500">*</span></label>
+                <input pInputText [(ngModel)]="form.apellidos" placeholder="Ej: García" />
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Teléfono</label>
+                <input pInputText [(ngModel)]="form.telefono" placeholder="Ej: 70000000" />
+            </div>
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Correo electrónico</label>
+                <input pInputText type="email" [(ngModel)]="form.correo" placeholder="tutor@correo.com" />
+            </div>
+        </div>
+        <div class="flex flex-col gap-1">
+            <label class="font-medium text-sm">Dirección</label>
+            <input pInputText [(ngModel)]="form.direccion" placeholder="Ej: Av. Principal 123" />
+        </div>
+
+        @if (!editMode) {
+            <p class="text-xs text-surface-400 m-0">Se creará automáticamente una cuenta de acceso. La contraseña inicial será el C.I. ingresado.</p>
+        }
+        <div class="flex flex-col gap-1">
+            <label class="font-medium text-sm">Foto de perfil</label>
+            <app-file-upload
+                [previewUrl]="fotoUrl()"
+                label="JPG, PNG, WEBP"
+                accept="image/jpeg,image/png,image/webp"
+                [maxSizeMb]="5"
+                [uploading]="uploadingFoto"
+                (fileSelected)="onFotoSeleccionada($event)" />
+        </div>
+    </div>
+
+    <ng-template #footer>
+        <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary" (onClick)="dialogVisible = false" />
+        <p-button [label]="editMode ? 'Actualizar' : 'Guardar'" icon="pi pi-check" (onClick)="guardar()" />
+    </ng-template>
+</p-dialog>
+
+<!-- Dialog vínculos tutor-estudiante -->
+<p-dialog [(visible)]="vinculoVisible"
+    [header]="'Estudiantes de ' + (tutorSeleccionado?.nombres ?? '') + ' ' + (tutorSeleccionado?.apellidos ?? '')"
+    [modal]="true" [style]="{width: '600px'}" [draggable]="false">
+
+    <!-- Formulario vincular -->
+    <div class="flex flex-col gap-4 pt-2">
+        <div class="flex flex-col gap-1">
+            <label class="font-medium text-sm">Estudiante <span class="text-red-500">*</span></label>
+            <p-select [options]="estudiantesOptions" [(ngModel)]="idEstudianteVinculo"
+                placeholder="Seleccionar estudiante" [filter]="true" filterPlaceholder="Buscar..." appendTo="body" />
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Parentesco</label>
+                <input pInputText [(ngModel)]="vinculoForm.parentesco" placeholder="Ej: Madre, Padre" />
+            </div>
+            <div class="flex items-center gap-3 pt-5">
+                <p-checkbox [(ngModel)]="vinculoForm.esPrincipal" [binary]="true" inputId="esPrincipal" />
+                <label for="esPrincipal" class="text-sm font-medium cursor-pointer">Tutor principal</label>
+            </div>
+        </div>
+    </div>
+
+    <ng-template #footer>
+        <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary" (onClick)="vinculoVisible = false" />
+        <p-button label="Vincular" icon="pi pi-link" (onClick)="vincular()" />
+    </ng-template>
+</p-dialog>

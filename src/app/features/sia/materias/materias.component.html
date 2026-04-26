@@ -1,0 +1,93 @@
+<p-toast />
+<p-confirmDialog />
+
+<div class="card">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h3 class="text-xl font-semibold text-surface-900 dark:text-surface-0 m-0">Materias</h3>
+            <p class="text-surface-400 text-sm mt-1 mb-0">Asignaturas del plan de estudios</p>
+        </div>
+        <p-button label="Nueva Materia" icon="pi pi-plus" (onClick)="nuevo()" />
+    </div>
+
+    <p-table #dt [value]="materias()" [loading]="loading" dataKey="id"
+        [globalFilterFields]="['codigo','nombre','estado']"
+        [paginator]="true" [rows]="10" [rowsPerPageOptions]="[10,25,50]"
+        sortField="nombre" [sortOrder]="1"
+        styleClass="p-datatable-striped">
+
+        <ng-template #caption>
+            <p-iconfield>
+                <p-inputicon class="pi pi-search" />
+                <input pInputText type="text" placeholder="Buscar materia..." (input)="onGlobalFilter(dt, $event)" />
+            </p-iconfield>
+        </ng-template>
+
+        <ng-template #header>
+            <tr>
+                <th pSortableColumn="codigo">Código <p-sortIcon field="codigo" /></th>
+                <th pSortableColumn="nombre">Nombre <p-sortIcon field="nombre" /></th>
+                <th>Carga Horaria</th>
+                <th>Área</th>
+                <th pSortableColumn="estado">Estado <p-sortIcon field="estado" /></th>
+                <th class="w-28">Acciones</th>
+            </tr>
+        </ng-template>
+
+        <ng-template #body let-m>
+            <tr>
+                <td><span class="font-mono text-sm bg-surface-100 dark:bg-surface-800 px-2 py-1 rounded">{{ m.codigo }}</span></td>
+                <td class="font-medium">{{ m.nombre }}</td>
+                <td>{{ m.cargaHoraria ? m.cargaHoraria + ' hrs/sem' : '—' }}</td>
+                <td class="text-surface-500 text-sm max-w-xs truncate">{{ m.area ?? '—' }}</td>
+                <td>
+                    <p-tag [value]="m.estado"
+                        [severity]="m.estado === 'ACTIVO' ? 'success' : 'danger'" />
+                </td>
+                <td>
+                    <div class="flex gap-2">
+                        <p-button icon="pi pi-pencil" [rounded]="true" [text]="true" severity="info"
+                            pTooltip="Editar" tooltipPosition="top" (onClick)="editar(m)" />
+                        <p-button icon="pi pi-trash" [rounded]="true" [text]="true" severity="danger"
+                            pTooltip="Eliminar" tooltipPosition="top" (onClick)="confirmarEliminar(m)" />
+                    </div>
+                </td>
+            </tr>
+        </ng-template>
+
+        <ng-template #emptymessage>
+            <tr><td colspan="6" class="text-center py-8 text-surface-400">No hay materias registradas</td></tr>
+        </ng-template>
+    </p-table>
+</div>
+
+<p-dialog [(visible)]="dialogVisible"
+    [header]="editMode ? 'Editar Materia' : 'Nueva Materia'"
+    [modal]="true" [style]="{width: '480px'}" [draggable]="false">
+
+    <div class="flex flex-col gap-4 pt-2">
+        <div class="grid grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Código <span class="text-red-500">*</span></label>
+                <input pInputText [(ngModel)]="form.codigo" placeholder="Ej: MAT-101" />
+            </div>
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Carga horaria (hrs/sem)</label>
+                <p-inputnumber [(ngModel)]="form.cargaHoraria" [min]="1" [max]="40" placeholder="Ej: 4" />
+            </div>
+        </div>
+        <div class="flex flex-col gap-1">
+            <label class="font-medium text-sm">Nombre <span class="text-red-500">*</span></label>
+            <input pInputText [(ngModel)]="form.nombre" placeholder="Ej: Matemáticas I" />
+        </div>
+        <div class="flex flex-col gap-1">
+            <label class="font-medium text-sm">Área</label>
+            <input pInputText [(ngModel)]="form.area" placeholder="Ej: Álgebra y geometría" />
+        </div>
+    </div>
+
+    <ng-template #footer>
+        <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary" (onClick)="dialogVisible = false" />
+        <p-button [label]="editMode ? 'Actualizar' : 'Guardar'" icon="pi pi-check" (onClick)="guardar()" />
+    </ng-template>
+</p-dialog>

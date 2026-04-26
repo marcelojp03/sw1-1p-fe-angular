@@ -1,0 +1,127 @@
+<p-toast />
+<p-confirmDialog />
+
+<div class="card">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h3 class="text-xl font-semibold text-surface-900 dark:text-surface-0 m-0">Docentes</h3>
+            <p class="text-surface-400 text-sm mt-1 mb-0">Personal docente de la institución</p>
+        </div>
+        <p-button label="Nuevo Docente" icon="pi pi-plus" (onClick)="nuevo()" />
+    </div>
+
+    <p-table #dt [value]="docentes()" [loading]="loading" dataKey="id"
+        [globalFilterFields]="['codigo','nombres','apellidos','correo','especialidad','estado']"
+        [paginator]="true" [rows]="10" [rowsPerPageOptions]="[10,25,50]"
+        sortField="apellidos" [sortOrder]="1"
+        styleClass="p-datatable-striped">
+
+        <ng-template #caption>
+            <p-iconfield>
+                <p-inputicon class="pi pi-search" />
+                <input pInputText type="text" placeholder="Buscar docente..." (input)="onGlobalFilter(dt, $event)" />
+            </p-iconfield>
+        </ng-template>
+
+        <ng-template #header>
+            <tr>
+                <th pSortableColumn="codigo">Código <p-sortIcon field="codigo" /></th>
+                <th pSortableColumn="apellidos">Nombre completo <p-sortIcon field="apellidos" /></th>
+                <th>CI</th>
+                <th>Correo</th>
+                <th>Especialidad</th>
+                <th pSortableColumn="estado">Estado <p-sortIcon field="estado" /></th>
+                <th class="w-28">Acciones</th>
+            </tr>
+        </ng-template>
+
+        <ng-template #body let-d>
+            <tr>
+                <td><span class="font-mono text-sm bg-surface-100 dark:bg-surface-800 px-2 py-1 rounded">{{ d.codigo }}</span></td>
+                <td class="font-medium">{{ d.apellidos }}, {{ d.nombres }}</td>
+                <td class="text-surface-500 text-sm">{{ d.documentoIdentidad }}</td>
+                <td class="text-sm">{{ d.correo }}</td>
+                <td class="text-surface-500 text-sm">{{ d.especialidad ?? '—' }}</td>
+                <td>
+                    <p-tag [value]="d.estado"
+                        [severity]="d.estado === 'ACTIVO' ? 'success' : 'danger'" />
+                </td>
+                <td>
+                    <div class="flex gap-2">
+                        <p-button icon="pi pi-pencil" [rounded]="true" [text]="true" severity="info"
+                            pTooltip="Editar" tooltipPosition="top" (onClick)="editar(d)" />
+                        <p-button icon="pi pi-trash" [rounded]="true" [text]="true" severity="danger"
+                            pTooltip="Eliminar" tooltipPosition="top" (onClick)="confirmarEliminar(d)" />
+                    </div>
+                </td>
+            </tr>
+        </ng-template>
+
+        <ng-template #emptymessage>
+            <tr><td colspan="7" class="text-center py-8 text-surface-400">No hay docentes registrados</td></tr>
+        </ng-template>
+    </p-table>
+</div>
+
+<p-dialog [(visible)]="dialogVisible"
+    [header]="editMode ? 'Editar Docente' : 'Nuevo Docente'"
+    [modal]="true" [style]="{width: '560px'}" [draggable]="false">
+
+    <div class="flex flex-col gap-4 pt-2">
+        <div class="grid grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Código <span class="text-red-500">*</span></label>
+                <input pInputText [(ngModel)]="form.codigo" placeholder="Ej: DOC-001" />
+            </div>
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Documento de identidad <span class="text-red-500">*</span></label>
+                <input pInputText [(ngModel)]="form.documentoIdentidad" placeholder="CI o pasaporte" />
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Nombres <span class="text-red-500">*</span></label>
+                <input pInputText [(ngModel)]="form.nombres" placeholder="Nombres" />
+            </div>
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Apellidos <span class="text-red-500">*</span></label>
+                <input pInputText [(ngModel)]="form.apellidos" placeholder="Apellidos" />
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Correo electrónico <span class="text-red-500">*</span></label>
+                <input pInputText type="email" [(ngModel)]="form.correo" placeholder="correo@ejemplo.com" />
+            </div>
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Teléfono</label>
+                <input pInputText [(ngModel)]="form.telefono" placeholder="Ej: 70012345" />
+            </div>
+        </div>
+        <div class="flex flex-col gap-1">
+            <label class="font-medium text-sm">Especialidad</label>
+            <input pInputText [(ngModel)]="form.especialidad" placeholder="Ej: Matemáticas, Física..." />
+        </div>
+
+        @if (!editMode) {
+            <p class="text-xs text-surface-400 m-0">Se creará automáticamente una cuenta de acceso. La contraseña inicial será el CI ingresado.</p>
+        }
+
+        <!-- Foto de perfil -->
+        <div class="flex flex-col gap-1">
+            <label class="font-medium text-sm">Foto de perfil</label>
+            <app-file-upload
+                [previewUrl]="fotoUrl()"
+                label="JPG, PNG, WEBP"
+                accept="image/jpeg,image/png,image/webp"
+                [maxSizeMb]="5"
+                [uploading]="uploadingFoto"
+                (fileSelected)="onFotoSeleccionada($event)" />
+        </div>
+    </div>
+
+    <ng-template #footer>
+        <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary" (onClick)="dialogVisible = false" />
+        <p-button [label]="editMode ? 'Actualizar' : 'Guardar'" icon="pi pi-check" (onClick)="guardar()" />
+    </ng-template>
+</p-dialog>

@@ -1,0 +1,63 @@
+<div class="flex flex-col gap-2">
+
+    <!-- Zona de arrastre / clic -->
+    <div
+        class="relative flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed
+               transition-colors cursor-pointer select-none min-h-[120px] p-4"
+        [class.border-primary]="isDragging()"
+        [class.bg-primary-50]="isDragging()"
+        [class.border-surface-300]="!isDragging()"
+        [class.dark:border-surface-600]="!isDragging()"
+        (click)="fileInput.click()">
+
+        <!-- Spinner mientras sube -->
+        @if (uploading) {
+            <p-progressspinner styleClass="w-10 h-10" strokeWidth="4" />
+            <span class="text-sm text-surface-400">Subiendo archivo…</span>
+        }
+
+        <!-- Preview de imagen -->
+        @else if (isImage) {
+            <img [src]="effectivePreview" alt="Vista previa"
+                 class="max-h-32 max-w-full object-contain rounded-lg" />
+            <span class="text-xs text-surface-400">{{ localFileName() ?? 'Imagen actual' }}</span>
+        }
+
+        <!-- Archivo PDF u otro -->
+        @else if (localFileName() || (previewUrl && !isImage)) {
+            <i class="pi pi-file-pdf text-4xl text-red-400"></i>
+            <span class="text-sm text-surface-500">{{ localFileName() ?? 'Archivo actual' }}</span>
+        }
+
+        <!-- Sin archivo -->
+        @else {
+            <i class="pi pi-cloud-upload text-4xl text-surface-300 dark:text-surface-600"></i>
+            <div class="text-center">
+                <p class="text-sm font-medium text-surface-600 dark:text-surface-300 m-0">
+                    Arrastra aquí o <span class="text-primary font-semibold">haz clic para seleccionar</span>
+                </p>
+                <p class="text-xs text-surface-400 mt-1 m-0">{{ label }} · máx. {{ maxSizeMb }} MB</p>
+            </div>
+        }
+
+        <input #fileInput type="file" [accept]="accept" class="hidden"
+            (change)="onInputChange($event)" />
+    </div>
+
+    <!-- Botón quitar / mensaje de error -->
+    <div class="flex items-center justify-between min-h-5">
+        @if (errorMsg()) {
+            <span class="text-xs text-red-500">{{ errorMsg() }}</span>
+        } @else {
+            <span></span>
+        }
+
+        @if (effectivePreview || localFileName()) {
+            <button type="button"
+                class="text-xs text-surface-400 hover:text-red-500 flex items-center gap-1 transition-colors"
+                (click)="onRemove()">
+                <i class="pi pi-times text-xs"></i> Quitar
+            </button>
+        }
+    </div>
+</div>

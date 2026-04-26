@@ -1,0 +1,133 @@
+<p-toast />
+<p-confirmDialog />
+
+<div class="card">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h3 class="text-xl font-semibold text-surface-900 dark:text-surface-0 m-0">Estudiantes</h3>
+            <p class="text-surface-400 text-sm mt-1 mb-0">Alumnos matriculados en la institución</p>
+        </div>
+        <p-button label="Nuevo Estudiante" icon="pi pi-plus" (onClick)="nuevo()" />
+    </div>
+
+    <p-table #dt [value]="estudiantes()" [loading]="loading" dataKey="id"
+        [globalFilterFields]="['codigoEstudiante','nombres','apellidos','documentoIdentidad','correo','estado']"
+        [paginator]="true" [rows]="10" [rowsPerPageOptions]="[10,25,50]"
+        sortField="apellidos" [sortOrder]="1"
+        styleClass="p-datatable-striped">
+
+        <ng-template #caption>
+            <p-iconfield>
+                <p-inputicon class="pi pi-search" />
+                <input pInputText type="text" placeholder="Buscar estudiante..." (input)="onGlobalFilter(dt, $event)" />
+            </p-iconfield>
+        </ng-template>
+
+        <ng-template #header>
+            <tr>
+                <th pSortableColumn="codigoEstudiante">Código <p-sortIcon field="codigoEstudiante" /></th>
+                <th pSortableColumn="apellidos">Nombre completo <p-sortIcon field="apellidos" /></th>
+                <th>CI</th>
+                <th>Correo</th>
+                <th>Sexo</th>
+                <th pSortableColumn="estado">Estado <p-sortIcon field="estado" /></th>
+                <th class="w-28">Acciones</th>
+            </tr>
+        </ng-template>
+
+        <ng-template #body let-e>
+            <tr>
+                <td><span class="font-mono text-sm bg-surface-100 dark:bg-surface-800 px-2 py-1 rounded">{{ e.codigoEstudiante }}</span></td>
+                <td class="font-medium">{{ e.apellidos }}, {{ e.nombres }}</td>
+                <td class="text-surface-500 text-sm">{{ e.documentoIdentidad }}</td>
+                <td class="text-sm">{{ e.correo ?? '—' }}</td>
+                <td class="text-sm">{{ sexoLabel(e.sexo) }}</td>
+                <td>
+                    <p-tag [value]="e.estado"
+                        [severity]="e.estado === 'ACTIVO' ? 'success' : 'danger'" />
+                </td>
+                <td>
+                    <div class="flex gap-2">
+                        <p-button icon="pi pi-pencil" [rounded]="true" [text]="true" severity="info"
+                            pTooltip="Editar" tooltipPosition="top" (onClick)="editar(e)" />
+                        <p-button icon="pi pi-trash" [rounded]="true" [text]="true" severity="danger"
+                            pTooltip="Eliminar" tooltipPosition="top" (onClick)="confirmarEliminar(e)" />
+                    </div>
+                </td>
+            </tr>
+        </ng-template>
+
+        <ng-template #emptymessage>
+            <tr><td colspan="7" class="text-center py-8 text-surface-400">No hay estudiantes registrados</td></tr>
+        </ng-template>
+    </p-table>
+</div>
+
+<p-dialog [(visible)]="dialogVisible"
+    [header]="editMode ? 'Editar Estudiante' : 'Nuevo Estudiante'"
+    [modal]="true" [style]="{width: '600px'}" [draggable]="false">
+
+    <div class="flex flex-col gap-4 pt-2">
+        <div class="grid grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Código de estudiante <span class="text-red-500">*</span></label>
+                <input pInputText [(ngModel)]="form.codigoEstudiante" placeholder="Ej: 2024-0001" />
+            </div>
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Documento de identidad <span class="text-red-500">*</span></label>
+                <input pInputText [(ngModel)]="form.documentoIdentidad" placeholder="CI o pasaporte" />
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Nombres <span class="text-red-500">*</span></label>
+                <input pInputText [(ngModel)]="form.nombres" placeholder="Nombres" />
+            </div>
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Apellidos <span class="text-red-500">*</span></label>
+                <input pInputText [(ngModel)]="form.apellidos" placeholder="Apellidos" />
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Fecha de nacimiento</label>
+                <input pInputText type="date" [(ngModel)]="form.fechaNacimiento" />
+            </div>
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Sexo</label>
+                <p-select [(ngModel)]="form.sexo" [options]="sexoOpts" optionLabel="label" optionValue="value" placeholder="Seleccionar..." appendTo="body" />
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Correo electrónico</label>
+                <input pInputText type="email" [(ngModel)]="form.correo" placeholder="correo@ejemplo.com" />
+            </div>
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Teléfono</label>
+                <input pInputText [(ngModel)]="form.telefono" placeholder="Ej: 70012345" />
+            </div>
+        </div>
+
+        @if (!editMode) {
+            <p class="text-xs text-surface-400 m-0">Se creará automáticamente una cuenta de acceso. La contraseña inicial será el CI ingresado.</p>
+        }
+
+        <!-- Foto de perfil -->
+        <div class="flex flex-col gap-1">
+            <label class="font-medium text-sm">Foto de perfil</label>
+            <app-file-upload
+                [previewUrl]="fotoUrl()"
+                label="JPG, PNG, WEBP"
+                accept="image/jpeg,image/png,image/webp"
+                [maxSizeMb]="5"
+                [uploading]="uploadingFoto"
+                (fileSelected)="onFotoSeleccionada($event)" />
+        </div>
+    </div>
+
+    <ng-template #footer>
+        <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary" (onClick)="dialogVisible = false" />
+        <p-button [label]="editMode ? 'Actualizar' : 'Guardar'" icon="pi pi-check" (onClick)="guardar()" />
+    </ng-template>
+</p-dialog>

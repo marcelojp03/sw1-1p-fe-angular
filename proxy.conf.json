@@ -1,0 +1,9 @@
+{
+    "/qr-proxy": {
+        "target": "https://vpay.com.bo:7778/test/api",
+        "secure": false,
+        "changeOrigin": true,
+        "pathRewrite": { "^/qr-proxy": "" },
+        "logLevel": "debug"
+    }
+}

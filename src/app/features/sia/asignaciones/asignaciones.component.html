@@ -1,0 +1,93 @@
+<p-toast />
+<p-confirmDialog />
+
+<div class="card">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h3 class="text-xl font-semibold text-surface-900 dark:text-surface-0 m-0">Asignaciones Docentes</h3>
+            <p class="text-surface-400 text-sm mt-1 mb-0">Asignación de docentes a materias y paralelos por gestión</p>
+        </div>
+        <p-button label="Nueva Asignación" icon="pi pi-plus" (onClick)="nueva()" />
+    </div>
+
+    <!-- Table -->
+    <p-table #dt [value]="asignaciones()" [loading]="loading" dataKey="id"
+        [globalFilterFields]="['idDocente','idMateria','estado']"
+        [paginator]="true" [rows]="10" [rowsPerPageOptions]="[10,25,50]"
+        styleClass="p-datatable-striped">
+
+        <ng-template #caption>
+            <p-iconfield>
+                <p-inputicon class="pi pi-search" />
+                <input pInputText type="text" placeholder="Buscar asignación..." (input)="onGlobalFilter(dt, $event)" />
+            </p-iconfield>
+        </ng-template>
+
+        <ng-template #header>
+            <tr>
+                <th>Docente</th>
+                <th>Materia</th>
+                <th>Paralelo</th>
+                <th>Gestión</th>
+                <th pSortableColumn="estado">Estado <p-sortIcon field="estado" /></th>
+                <th class="w-28">Acciones</th>
+            </tr>
+        </ng-template>
+
+        <ng-template #body let-a>
+            <tr>
+                <td class="font-medium">{{ getNombreDocente(a.idDocente) }}</td>
+                <td>{{ getNombreMateria(a.idMateria) }}</td>
+                <td>{{ getNombreParalelo(a.idParalelo) }}</td>
+                <td>{{ getNombreGestion(a.idGestion) }}</td>
+                <td>
+                    <p-tag [value]="a.estado" [severity]="a.estado === 'ACTIVO' ? 'success' : 'danger'" />
+                </td>
+                <td>
+                    <p-button icon="pi pi-trash" [rounded]="true" [text]="true" severity="danger"
+                        pTooltip="Eliminar" tooltipPosition="top" (onClick)="confirmarEliminar(a)" />
+                </td>
+            </tr>
+        </ng-template>
+
+        <ng-template #emptymessage>
+            <tr><td colspan="6" class="text-center py-8 text-surface-400">No hay asignaciones registradas</td></tr>
+        </ng-template>
+    </p-table>
+</div>
+
+<!-- Dialog nueva asignación -->
+<p-dialog [(visible)]="dialogVisible" header="Nueva Asignación Docente"
+    [modal]="true" [style]="{width: '480px'}" [draggable]="false">
+
+    <div class="flex flex-col gap-4 pt-2">
+        <div class="flex flex-col gap-1">
+            <label class="font-medium text-sm">Docente <span class="text-red-500">*</span></label>
+            <p-select [options]="docentesOptions" [(ngModel)]="form.idDocente"
+                placeholder="Seleccionar docente" [filter]="true" filterPlaceholder="Buscar..." appendTo="body" />
+        </div>
+        <div class="flex flex-col gap-1">
+            <label class="font-medium text-sm">Materia <span class="text-red-500">*</span></label>
+            <p-select [options]="materiasOptions" [(ngModel)]="form.idMateria"
+                placeholder="Seleccionar materia" [filter]="true" filterPlaceholder="Buscar..." appendTo="body" />
+        </div>
+        <div class="flex flex-col gap-1">
+            <label class="font-medium text-sm">Gestión Académica <span class="text-red-500">*</span></label>
+            <p-select [options]="gestionesOptions" [(ngModel)]="form.idGestion"
+                placeholder="Seleccionar gestión" [filter]="true"
+                (onChange)="onGestionChange()" appendTo="body" />
+        </div>
+        <div class="flex flex-col gap-1">
+            <label class="font-medium text-sm">Paralelo <span class="text-red-500">*</span></label>
+            <p-select [options]="paralelosOptions" [(ngModel)]="form.idParalelo"
+                placeholder="Seleccionar paralelo"
+                [disabled]="!form.idGestion" appendTo="body" />
+        </div>
+    </div>
+
+    <ng-template #footer>
+        <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary" (onClick)="dialogVisible = false" />
+        <p-button label="Asignar" icon="pi pi-check" (onClick)="guardar()" />
+    </ng-template>
+</p-dialog>

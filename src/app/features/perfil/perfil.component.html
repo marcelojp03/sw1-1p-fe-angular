@@ -1,0 +1,40 @@
+<div class="grid grid-cols-12 gap-8">
+    <div class="col-span-12 lg:col-span-6">
+        <p-card header="Mi Perfil">
+            @if (user) {
+                <div class="flex flex-col gap-4">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="flex items-center justify-center bg-primary rounded-full text-white font-bold" style="width: 4rem; height: 4rem; font-size: 1.5rem">
+                            {{ (user.fullName || user.username).charAt(0).toUpperCase() }}
+                        </div>
+                        <div>
+                            <h3 class="m-0">{{ user.fullName || user.username }}</h3>
+                        </div>
+                    </div>
+                    <p-divider />
+                    <div class="grid grid-cols-12 gap-4">
+                        <div class="col-span-12">
+                            <span class="block text-surface-500 text-sm mb-1">Usuario</span>
+                            <span>{{ user.username }}</span>
+                        </div>
+                        <div class="col-span-12">
+                            <span class="block text-surface-500 text-sm mb-1">Correo electrónico</span>
+                            <span>{{ user.email || '-' }}</span>
+                        </div>
+                        <div class="col-span-12">
+                            <span class="block text-surface-500 text-sm mb-2">Roles</span>
+                            <div class="flex flex-wrap gap-2">
+                                @for (rol of user.roles; track rol) {
+                                    <p-tag [value]="rol" />
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+            @if (!user) {
+                <div class="text-center p-4 text-surface-400">Cargando perfil...</div>
+            }
+        </p-card>
+    </div>
+</div>

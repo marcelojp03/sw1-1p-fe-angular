@@ -1,0 +1,102 @@
+<p-toast />
+<p-confirmDialog />
+
+<div class="card">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h3 class="text-xl font-semibold text-surface-900 dark:text-surface-0 m-0">Gestiones Académicas</h3>
+            <p class="text-surface-400 text-sm mt-1 mb-0">Administra los periodos académicos de la institución</p>
+        </div>
+        <p-button label="Nueva Gestión" icon="pi pi-plus" (onClick)="nuevo()" />
+    </div>
+
+    <!-- Table -->
+    <p-table #dt [value]="gestiones()" [loading]="loading" dataKey="id"
+        [globalFilterFields]="['nombre','estado']"
+        [paginator]="true" [rows]="10" [rowsPerPageOptions]="[10,25,50]"
+        sortField="nombre" [sortOrder]="1"
+        styleClass="p-datatable-striped">
+
+        <ng-template #caption>
+            <p-iconfield>
+                <p-inputicon class="pi pi-search" />
+                <input pInputText type="text" placeholder="Buscar gestión..." (input)="onGlobalFilter(dt, $event)" />
+            </p-iconfield>
+        </ng-template>
+
+        <ng-template #header>
+            <tr>
+                <th pSortableColumn="nombre">Nombre <p-sortIcon field="nombre" /></th>
+                <th pSortableColumn="fechaInicio">Inicio <p-sortIcon field="fechaInicio" /></th>
+                <th pSortableColumn="fechaFin">Fin <p-sortIcon field="fechaFin" /></th>
+                <th>Activa</th>
+                <th pSortableColumn="estado">Estado <p-sortIcon field="estado" /></th>
+                <th class="w-28">Acciones</th>
+            </tr>
+        </ng-template>
+
+        <ng-template #body let-g>
+            <tr>
+                <td class="font-medium">{{ g.nombre }}</td>
+                <td>{{ g.fechaInicio | date:'dd/MM/yyyy' }}</td>
+                <td>{{ g.fechaFin | date:'dd/MM/yyyy' }}</td>
+                <td>
+                    @if (g.activa) {
+                        <p-tag value="Sí" severity="success" icon="pi pi-check-circle" />
+                    } @else {
+                        <p-tag value="No" severity="secondary" />
+                    }
+                </td>
+                <td>
+                    <p-tag [value]="g.estado"
+                        [severity]="g.estado === 'ACTIVO' ? 'success' : 'danger'" />
+                </td>
+                <td>
+                    <div class="flex gap-2">
+                        <p-button icon="pi pi-pencil" [rounded]="true" [text]="true" severity="info"
+                            pTooltip="Editar" tooltipPosition="top" (onClick)="editar(g)" />
+                        <p-button icon="pi pi-trash" [rounded]="true" [text]="true" severity="danger"
+                            pTooltip="Eliminar" tooltipPosition="top" (onClick)="confirmarEliminar(g)" />
+                    </div>
+                </td>
+            </tr>
+        </ng-template>
+
+        <ng-template #emptymessage>
+            <tr><td colspan="6" class="text-center py-8 text-surface-400">No hay gestiones registradas</td></tr>
+        </ng-template>
+    </p-table>
+</div>
+
+<!-- Dialog -->
+<p-dialog [(visible)]="dialogVisible"
+    [header]="editMode ? 'Editar Gestión' : 'Nueva Gestión'"
+    [modal]="true" [style]="{width: '480px'}" [draggable]="false">
+
+    <div class="flex flex-col gap-4 pt-2">
+        <div class="flex flex-col gap-1">
+            <label class="font-medium text-sm">Nombre <span class="text-red-500">*</span></label>
+            <input pInputText [(ngModel)]="form.nombre" placeholder="Ej: 2025 - I" />
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Fecha inicio <span class="text-red-500">*</span></label>
+                <input pInputText type="date" [(ngModel)]="form.fechaInicio" />
+            </div>
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Fecha fin <span class="text-red-500">*</span></label>
+                <input pInputText type="date" [(ngModel)]="form.fechaFin" />
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            <p-checkbox [(ngModel)]="form.activa" [binary]="true" inputId="activa" />
+            <label for="activa" class="text-sm">Marcar como gestión activa</label>
+        </div>
+    </div>
+
+    <ng-template #footer>
+        <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary" (onClick)="dialogVisible = false" />
+        <p-button [label]="editMode ? 'Actualizar' : 'Guardar'" icon="pi pi-check" (onClick)="guardar()" />
+    </ng-template>
+</p-dialog>

@@ -1,0 +1,96 @@
+<p-toast />
+<p-confirmDialog />
+
+<div class="card">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h3 class="text-xl font-semibold text-surface-900 dark:text-surface-0 m-0">Paralelos</h3>
+            <p class="text-surface-400 text-sm mt-1 mb-0">Divisiones de curso por gestión académica</p>
+        </div>
+        <p-button label="Nuevo Paralelo" icon="pi pi-plus" (onClick)="nuevo()" />
+    </div>
+
+    <p-table #dt [value]="paralelos()" [loading]="loading" dataKey="id"
+        [globalFilterFields]="['nombre','estado']"
+        [paginator]="true" [rows]="10" [rowsPerPageOptions]="[10,25,50]"
+        styleClass="p-datatable-striped">
+
+        <ng-template #caption>
+            <p-iconfield>
+                <p-inputicon class="pi pi-search" />
+                <input pInputText type="text" placeholder="Buscar paralelo..." (input)="onGlobalFilter(dt, $event)" />
+            </p-iconfield>
+        </ng-template>
+
+        <ng-template #header>
+            <tr>
+                <th pSortableColumn="nombre">Paralelo <p-sortIcon field="nombre" /></th>
+                <th>Curso</th>
+                <th>Gestión</th>
+                <th>Capacidad</th>
+                <th pSortableColumn="estado">Estado <p-sortIcon field="estado" /></th>
+                <th class="w-28">Acciones</th>
+            </tr>
+        </ng-template>
+
+        <ng-template #body let-p>
+            <tr>
+                <td class="font-semibold text-lg">{{ p.nombre }}</td>
+                <td>{{ getNombreCurso(p.idCurso) }}</td>
+                <td>{{ getNombreGestion(p.idGestion) }}</td>
+                <td>{{ p.capacidad ?? '—' }}</td>
+                <td>
+                    <p-tag [value]="p.estado" [severity]="p.estado === 'ACTIVO' ? 'success' : 'danger'" />
+                </td>
+                <td>
+                    <div class="flex gap-2">
+                        <p-button icon="pi pi-pencil" [rounded]="true" [text]="true" severity="info"
+                            pTooltip="Editar" tooltipPosition="top" (onClick)="editar(p)" />
+                        <p-button icon="pi pi-trash" [rounded]="true" [text]="true" severity="danger"
+                            pTooltip="Eliminar" tooltipPosition="top" (onClick)="confirmarEliminar(p)" />
+                    </div>
+                </td>
+            </tr>
+        </ng-template>
+
+        <ng-template #emptymessage>
+            <tr><td colspan="6" class="text-center py-8 text-surface-400">No hay paralelos registrados</td></tr>
+        </ng-template>
+    </p-table>
+</div>
+
+<p-dialog [(visible)]="dialogVisible"
+    [header]="editMode ? 'Editar Paralelo' : 'Nuevo Paralelo'"
+    [modal]="true" [style]="{width: '480px'}" [draggable]="false">
+
+    <div class="flex flex-col gap-4 pt-2">
+        <div class="grid grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Curso <span class="text-red-500">*</span></label>
+                <p-select [options]="cursosOptions" [(ngModel)]="form.idCurso"
+                    placeholder="Seleccionar curso" [filter]="true" filterPlaceholder="Buscar..." appendTo="body" />
+            </div>
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Gestión <span class="text-red-500">*</span></label>
+                <p-select [options]="gestionesOptions" [(ngModel)]="form.idGestion"
+                    placeholder="Seleccionar gestión" appendTo="body" />
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Nombre <span class="text-red-500">*</span></label>
+                <input pInputText [(ngModel)]="form.nombre" placeholder="Ej: A, B, Mañana" />
+            </div>
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Capacidad máxima</label>
+                <p-inputnumber [(ngModel)]="form.capacidad" placeholder="Ej: 30"
+                    [min]="1" [max]="100" [showButtons]="false" />
+            </div>
+        </div>
+    </div>
+
+    <ng-template #footer>
+        <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary" (onClick)="dialogVisible = false" />
+        <p-button [label]="editMode ? 'Actualizar' : 'Crear'" icon="pi pi-check" (onClick)="guardar()" />
+    </ng-template>
+</p-dialog>

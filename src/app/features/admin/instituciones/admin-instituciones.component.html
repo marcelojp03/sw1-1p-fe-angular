@@ -1,0 +1,108 @@
+<p-toast />
+<p-confirmDialog />
+
+<div class="card">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h3 class="text-xl font-semibold text-surface-900 dark:text-surface-0 m-0">Instituciones</h3>
+            <p class="text-surface-400 text-sm mt-1 mb-0">Administra las instituciones educativas del sistema</p>
+        </div>
+        <p-button label="Nueva Institución" icon="pi pi-plus" (onClick)="nuevo()" />
+    </div>
+
+    <p-table #dt [value]="instituciones()" [loading]="loading" dataKey="id"
+        [globalFilterFields]="['nombre','codigo','correo','estado']"
+        [paginator]="true" [rows]="10" [rowsPerPageOptions]="[10,25,50]"
+        sortField="nombre" [sortOrder]="1"
+        styleClass="p-datatable-striped">
+
+        <ng-template #caption>
+            <p-iconfield>
+                <p-inputicon class="pi pi-search" />
+                <input pInputText type="text" placeholder="Buscar institución..." (input)="onGlobalFilter(dt, $event)" />
+            </p-iconfield>
+        </ng-template>
+
+        <ng-template #header>
+            <tr>
+                <th pSortableColumn="nombre">Nombre <p-sortIcon field="nombre" /></th>
+                <th pSortableColumn="codigo">Código <p-sortIcon field="codigo" /></th>
+                <th>Tipo</th>
+                <th>Dirección</th>
+                <th>Teléfono</th>
+                <th>Correo</th>
+                <th pSortableColumn="estado">Estado <p-sortIcon field="estado" /></th>
+                <th class="w-28">Acciones</th>
+            </tr>
+        </ng-template>
+
+        <ng-template #body let-inst>
+            <tr>
+                <td class="font-medium">{{ inst.nombre }}</td>
+                <td class="font-mono text-sm">{{ inst.codigo ?? '—' }}</td>
+                <td class="text-sm">{{ inst.tipoInstitucion ?? '—' }}</td>
+                <td class="text-surface-500 text-sm max-w-xs truncate">{{ inst.direccion ?? '—' }}</td>
+                <td class="text-sm">{{ inst.telefono ?? '—' }}</td>
+                <td class="text-sm">{{ inst.correo ?? '—' }}</td>
+                <td>
+                    <p-tag [value]="inst.estado"
+                        [severity]="inst.estado === 'ACTIVO' ? 'success' : 'danger'" />
+                </td>
+                <td>
+                    <div class="flex gap-2">
+                        <p-button icon="pi pi-pencil" [rounded]="true" [text]="true" severity="info"
+                            pTooltip="Editar" tooltipPosition="top" (onClick)="editar(inst)" />
+                        <p-button icon="pi pi-trash" [rounded]="true" [text]="true" severity="danger"
+                            pTooltip="Eliminar" tooltipPosition="top" (onClick)="confirmarEliminar(inst)" />
+                    </div>
+                </td>
+            </tr>
+        </ng-template>
+
+        <ng-template #emptymessage>
+            <tr><td colspan="8" class="text-center py-8 text-surface-400">No hay instituciones registradas</td></tr>
+        </ng-template>
+    </p-table>
+</div>
+
+<p-dialog [(visible)]="dialogVisible"
+    [header]="editMode ? 'Editar Institución' : 'Nueva Institución'"
+    [modal]="true" [style]="{width: '520px'}" [draggable]="false">
+
+    <div class="flex flex-col gap-4 pt-2">
+        <div class="grid grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Nombre <span class="text-red-500">*</span></label>
+                <input pInputText [(ngModel)]="form.nombre" placeholder="Nombre de la institución" />
+            </div>
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Código</label>
+                <input pInputText [(ngModel)]="form.codigo" placeholder="Ej: COL-001" />
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Tipo de institución</label>
+                <p-select [options]="tiposInstitucion" [(ngModel)]="form.tipoInstitucion"
+                    placeholder="Seleccionar tipo" appendTo="body" />
+            </div>
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Correo</label>
+                <input pInputText type="email" [(ngModel)]="form.correo" placeholder="correo@institucion.edu" />
+            </div>
+        </div>
+        <div class="flex flex-col gap-1">
+            <label class="font-medium text-sm">Dirección</label>
+            <input pInputText [(ngModel)]="form.direccion" placeholder="Dirección física" />
+        </div>
+        <div class="flex flex-col gap-1">
+            <label class="font-medium text-sm">Teléfono</label>
+            <input pInputText [(ngModel)]="form.telefono" placeholder="Ej: 33450000" />
+        </div>
+    </div>
+
+    <ng-template #footer>
+        <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary" (onClick)="dialogVisible = false" />
+        <p-button [label]="editMode ? 'Actualizar' : 'Guardar'" icon="pi pi-check" (onClick)="guardar()" />
+    </ng-template>
+</p-dialog>

@@ -1,0 +1,32 @@
+<div class="grid grid-cols-12 gap-8">
+    <div class="col-span-12 flex items-center justify-between">
+        <h5 class="m-0 text-xl font-semibold">Panel Super Admin</h5>
+        <p-button icon="pi pi-refresh" [rounded]="true" [text]="true" (onClick)="cargar()" pTooltip="Actualizar" />
+    </div>
+
+    <div class="col-span-12 lg:col-span-4">
+        <p-card>
+            <div class="flex items-center justify-between">
+                <div>
+                    <span class="block text-surface-500 font-medium mb-3">Instituciones registradas</span>
+                    <div class="text-surface-900 dark:text-surface-0 font-bold text-4xl">{{ totalInstituciones() }}</div>
+                </div>
+                <div class="flex items-center justify-center bg-blue-100 dark:bg-blue-900/30 rounded-full" style="width: 2.5rem; height: 2.5rem">
+                    <i class="pi pi-building text-blue-500 text-xl"></i>
+                </div>
+            </div>
+            <div class="mt-4">
+                <p-button label="Ver instituciones" icon="pi pi-arrow-right" size="small" [text]="true" (onClick)="router.navigate(['/admin/instituciones'])" />
+            </div>
+        </p-card>
+    </div>
+
+    <div class="col-span-12">
+        <p-card header="Accesos rápidos">
+            <div class="flex flex-wrap gap-3">
+                <p-button label="Nueva institución" icon="pi pi-plus" (onClick)="router.navigate(['/admin/instituciones'])" />
+                <p-button label="Usuarios" icon="pi pi-users" severity="secondary" (onClick)="router.navigate(['/admin/usuarios'])" />
+            </div>
+        </p-card>
+    </div>
+</div>

@@ -1,0 +1,163 @@
+<p-toast />
+<p-confirmDialog />
+
+<div class="card">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h3 class="text-xl font-semibold text-surface-900 dark:text-surface-0 m-0">Usuarios</h3>
+            <p class="text-surface-400 text-sm mt-1 mb-0">Gestiona los usuarios del sistema</p>
+        </div>
+        <p-button label="Nuevo Usuario" icon="pi pi-plus" (onClick)="nuevo()" />
+    </div>
+
+    <p-table #dt [value]="usuarios()" [loading]="loading" dataKey="id"
+        [globalFilterFields]="['nombres','apellidos','correo','estado']"
+        [paginator]="true" [rows]="10" [rowsPerPageOptions]="[10,25,50]"
+        sortField="apellidos" [sortOrder]="1"
+        styleClass="p-datatable-striped">
+
+        <ng-template #caption>
+            <p-iconfield>
+                <p-inputicon class="pi pi-search" />
+                <input pInputText type="text" placeholder="Buscar usuario..." (input)="onGlobalFilter(dt, $event)" />
+            </p-iconfield>
+        </ng-template>
+
+        <ng-template #header>
+            <tr>
+                <th pSortableColumn="apellidos">Nombre <p-sortIcon field="apellidos" /></th>
+                <th pSortableColumn="correo">Correo <p-sortIcon field="correo" /></th>
+                <th>Institucion</th>
+                <th>Roles</th>
+                <th pSortableColumn="estado">Estado <p-sortIcon field="estado" /></th>
+                <th class="w-36">Acciones</th>
+            </tr>
+        </ng-template>
+
+        <ng-template #body let-u>
+            <tr>
+                <td class="font-medium">{{ u.apellidos }}, {{ u.nombres }}</td>
+                <td class="text-sm text-surface-500">{{ u.correo }}</td>
+                <td class="text-sm">{{ getNombreInstitucion(u.idInstitucion) }}</td>
+                <td>
+                    <div class="flex flex-wrap gap-1">
+                        @for (rol of u.roles; track rol) {
+                            <p-tag [value]="rol" [severity]="rolSeverity(rol)" styleClass="text-xs" />
+                        }
+                        @if (!u.roles.length) {
+                            <span class="text-surface-400 text-xs">Sin roles</span>
+                        }
+                    </div>
+                </td>
+                <td>
+                    <p-tag [value]="u.estado" [severity]="u.estado === 'ACTIVO' ? 'success' : 'danger'" />
+                </td>
+                <td>
+                    <div class="flex gap-1">
+                        <p-button icon="pi pi-pencil" [rounded]="true" [text]="true" severity="secondary"
+                            pTooltip="Editar" tooltipPosition="top" (onClick)="abrirEditar(u)" />
+                        <p-button icon="pi pi-shield" [rounded]="true" [text]="true" severity="info"
+                            pTooltip="Gestionar roles" tooltipPosition="top" (onClick)="abrirRoles(u)" />
+                        <p-button icon="pi pi-trash" [rounded]="true" [text]="true" severity="danger"
+                            pTooltip="Eliminar" tooltipPosition="top" (onClick)="confirmarEliminar(u)" />
+                    </div>
+                </td>
+            </tr>
+        </ng-template>
+
+        <ng-template #emptymessage>
+            <tr><td colspan="6" class="text-center py-8 text-surface-400">No hay usuarios registrados</td></tr>
+        </ng-template>
+    </p-table>
+</div>
+
+<!-- Dialog crear usuario -->
+<p-dialog [(visible)]="dialogVisible" header="Nuevo Usuario"
+    [modal]="true" [style]="{width: '520px'}" [draggable]="false">
+
+    <div class="flex flex-col gap-4 pt-2">
+        <div class="flex flex-col gap-1">
+            <label class="font-medium text-sm">Correo electronico <span class="text-red-500">*</span></label>
+            <input pInputText type="email" [(ngModel)]="form.correo" placeholder="usuario@correo.com" />
+        </div>
+        <div class="flex flex-col gap-1">
+            <label class="font-medium text-sm">Contraseña <span class="text-red-500">*</span></label>
+            <p-password [(ngModel)]="form.contrasena" [feedback]="true" [toggleMask]="true" styleClass="w-full" inputStyleClass="w-full" placeholder="Contrasena segura" />
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Nombres <span class="text-red-500">*</span></label>
+                <input pInputText [(ngModel)]="form.nombres" placeholder="Ej: Juan" />
+            </div>
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Apellidos <span class="text-red-500">*</span></label>
+                <input pInputText [(ngModel)]="form.apellidos" placeholder="Ej: Perez" />
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Institución</label>
+                <p-select [options]="institucionesOptions" [(ngModel)]="form.idInstitucion"
+                    placeholder="Seleccionar" [filter]="true" [showClear]="true" appendTo="body" />
+            </div>
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Rol inicial</label>
+                <p-select [options]="rolesOptions" [(ngModel)]="form.codigoRol"
+                    placeholder="Seleccionar rol" [showClear]="true" appendTo="body" />
+            </div>
+        </div>
+    </div>
+
+    <ng-template #footer>
+        <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary" (onClick)="dialogVisible = false" />
+        <p-button label="Crear Usuario" icon="pi pi-check" (onClick)="guardar()" />
+    </ng-template>
+</p-dialog>
+
+<!-- Dialog editar usuario -->
+<p-dialog [(visible)]="editarVisible" header="Editar Usuario"
+    [modal]="true" [style]="{width: '420px'}" [draggable]="false">
+
+    <div class="flex flex-col gap-4 pt-2">
+        <div class="grid grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Nombres <span class="text-red-500">*</span></label>
+                <input pInputText [(ngModel)]="editForm.nombres" placeholder="Ej: Juan" />
+            </div>
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Apellidos <span class="text-red-500">*</span></label>
+                <input pInputText [(ngModel)]="editForm.apellidos" placeholder="Ej: Perez" />
+            </div>
+        </div>
+        <div class="flex flex-col gap-1">
+            <label class="font-medium text-sm">Teléfono</label>
+            <input pInputText [(ngModel)]="editForm.telefono" placeholder="Ej: 70012345" />
+        </div>
+    </div>
+
+    <ng-template #footer>
+        <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary" (onClick)="editarVisible = false" />
+        <p-button label="Guardar cambios" icon="pi pi-check" (onClick)="guardarEdicion()" />
+    </ng-template>
+</p-dialog>
+
+<!-- Dialog roles -->
+<p-dialog [(visible)]="rolesVisible"
+    [header]="'Roles de ' + (usuarioRoles?.nombres ?? '') + ' ' + (usuarioRoles?.apellidos ?? '')"
+    [modal]="true" [style]="{width: '420px'}" [draggable]="false">
+
+    <div class="flex flex-col gap-3 pt-2">
+        <p class="text-surface-500 text-sm m-0">Usuario: {{ usuarioRoles?.correo }}</p>
+        <p class="text-surface-500 text-xs m-0">Roles actuales: {{ (usuarioRoles?.roles ?? []).join(', ') || 'Sin roles' }}</p>
+        <div class="flex flex-col gap-1 mt-2">
+            <label class="font-medium text-sm">Agregar rol</label>
+            <p-select [options]="rolesOptions" [(ngModel)]="rolSeleccionado"
+                placeholder="Seleccionar rol" appendTo="body" />
+        </div>
+    </div>
+
+    <ng-template #footer>
+        <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary" (onClick)="rolesVisible = false" />
+        <p-button label="Asignar Rol" icon="pi pi-check" (onClick)="guardarRoles()" />
+    </ng-template>
+</p-dialog>
