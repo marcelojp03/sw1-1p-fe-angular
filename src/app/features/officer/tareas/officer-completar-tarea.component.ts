@@ -167,6 +167,25 @@ import { TaskResponse, FormField } from './tarea.model';
             placeholder="Notas o comentarios adicionales (opcional)..."
           ></textarea>
 
+          <!-- Observación hacia cliente -->
+          <div class="flex items-center gap-2 mt-3">
+            <p-checkbox [(ngModel)]="generarObservacion" [binary]="true" inputId="cbObservacion" />
+            <label for="cbObservacion" class="text-sm font-medium cursor-pointer">
+              Generar observación hacia cliente
+            </label>
+          </div>
+          @if (generarObservacion) {
+            <div class="mt-2">
+              <textarea
+                pTextarea
+                [(ngModel)]="observacionTexto"
+                rows="3"
+                class="w-full"
+                placeholder="Describa la observación para el cliente..."
+              ></textarea>
+            </div>
+          }
+
           <div class="flex justify-end gap-2 mt-4">
             <p-button
               label="Cancelar"
@@ -200,6 +219,8 @@ export class OfficerCompletarTareaComponent implements OnInit {
     formResponse: Record<string, unknown> = {};
     notes = '';
     selectedFiles: Record<string, File[]> = {};
+    generarObservacion = false;
+    observacionTexto = '';
 
     ngOnInit(): void {
         const id = Number(this.route.snapshot.paramMap.get('id'));
@@ -230,7 +251,12 @@ export class OfficerCompletarTareaComponent implements OnInit {
         const id = this.tarea()!.id;
         this.submitting.set(true);
 
-        this.taskService.complete(id, { formResponse: this.formResponse, notes: this.notes }).subscribe({
+        let finalNotes = this.notes;
+        if (this.generarObservacion && this.observacionTexto.trim()) {
+            finalNotes = (finalNotes ? finalNotes + '\n' : '') + `[OBSERVACIÓN CLIENTE] ${this.observacionTexto.trim()}`;
+        }
+
+        this.taskService.complete(id, { formResponse: this.formResponse, notes: finalNotes }).subscribe({
             next: () => {
                 const allFiles = Object.values(this.selectedFiles).flat();
                 if (allFiles.length > 0) {
