@@ -1,5 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { CardModule } from 'primeng/card';
 import { ButtonModule } from 'primeng/button';
@@ -7,20 +9,31 @@ import { TooltipModule } from 'primeng/tooltip';
 import { ChartModule } from 'primeng/chart';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { BadgeModule } from 'primeng/badge';
+import { SelectModule } from 'primeng/select';
+import { TableModule } from 'primeng/table';
+import { TagModule } from 'primeng/tag';
 import { DashboardService } from './dashboard.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { DashboardSummaryResponse } from './dashboard.model';
+import { AiPoliticaService } from '../politicas/ai-politica.service';
+import { DashboardSummaryResponse, AverageTimeByNodeItem } from './dashboard.model';
+import { AnalyzeBottlenecksRequest, BottleneckItem } from '../politicas/ai-politica.model';
+import { environment } from '../../../../environments/environment';
 
 @Component({
     selector: 'app-admin-dashboard',
     standalone: true,
-    imports: [CommonModule, CardModule, ButtonModule, TooltipModule, ChartModule, ProgressSpinnerModule, BadgeModule],
+    imports: [
+        CommonModule, FormsModule, CardModule, ButtonModule, TooltipModule,
+        ChartModule, ProgressSpinnerModule, BadgeModule, SelectModule, TableModule, TagModule,
+    ],
     templateUrl: './admin-dashboard.component.html',
 })
 export class AdminDashboardComponent implements OnInit {
     router = inject(Router);
     private dashboardService = inject(DashboardService);
     private authService = inject(AuthService);
+    private http = inject(HttpClient);
+    private aiService = inject(AiPoliticaService);
 
     loading = signal(true);
     summary = signal<DashboardSummaryResponse | null>(null);
@@ -35,6 +48,15 @@ export class AdminDashboardComponent implements OnInit {
             y: { beginAtZero: true, ticks: { stepSize: 1 } },
         },
     };
+
+    avgTimeNodes = signal<AverageTimeByNodeItem[]>([]);
+    avgTimeLoading = signal(false);
+    policies = signal<{ id: string; name: string }[]>([]);
+    selectedPolicyIdModel = '';
+
+    bottlenecks = signal<BottleneckItem[]>([]);
+    bottleneckRecommendations = signal<string[]>([]);
+    bottleneckLoading = signal(false);
 
     private readonly statusColors: Record<string, string> = {
         IN_PROGRESS:    '#3b82f6',
@@ -61,6 +83,69 @@ export class AdminDashboardComponent implements OnInit {
                 this.loading.set(false);
             },
             error: () => this.loading.set(false),
+        });
+        this.cargarPoliticas();
+        this.cargarTiempoPromedio();
+    }
+
+    cargarPoliticas(): void {
+        const orgId = this.authService.currentUserSignal()?.organizationId;
+        if (!orgId) return;
+        this.http.get<any[]>(`${environment.api.baseUrl}/workflow-policies`, {
+            params: { organizationId: String(orgId), status: 'PUBLISHED' },
+        }).subscribe({
+            next: (data) => this.policies.set(data.map(p => ({ id: p.id, name: p.name }))),
+        });
+    }
+
+    cargarTiempoPromedio(): void {
+        const orgId = this.authService.currentUserSignal()?.organizationId;
+        if (!orgId) return;
+        this.avgTimeLoading.set(true);
+        const policyId = this.selectedPolicyIdModel || undefined;
+        this.dashboardService.averageTimeByNode(orgId, policyId).subscribe({
+            next: (items) => { this.avgTimeNodes.set(items); this.avgTimeLoading.set(false); },
+            error: () => this.avgTimeLoading.set(false),
+        });
+    }
+
+    filtrarPorPolitica(): void {
+        const orgId = this.authService.currentUserSignal()?.organizationId;
+        if (!orgId) return;
+        this.cargarTiempoPromedio();
+        this.dashboardService.proceduresByStatus(orgId, this.selectedPolicyIdModel || undefined).subscribe({
+            next: (data) => this.buildChart(
+                data.items.reduce((acc, item) => ({ ...acc, [item.status]: item.count }), {} as Record<string, number>)
+            ),
+        });
+    }
+
+    analizarCuellos(): void {
+        const nodes = this.avgTimeNodes();
+        if (nodes.length === 0) return;
+        const orgId = this.authService.currentUserSignal()?.organizationId;
+        if (!orgId) return;
+        this.bottleneckLoading.set(true);
+        const selectedPolicy = this.policies().find(p => p.id === this.selectedPolicyIdModel);
+        const req: AnalyzeBottlenecksRequest = {
+            policyName: selectedPolicy?.name ?? 'Todas las políticas',
+            metrics: nodes.map(n => ({
+                nodeId: n.nodeId,
+                label: n.nodeLabel,
+                avgDurationHours: n.avgDurationHours,
+                pendingTasks: 0,
+                completedTasks: n.completedCount,
+                cancelledTasks: 0,
+            })),
+            language: 'es',
+        };
+        this.aiService.analyzeBottlenecks(req, orgId).subscribe({
+            next: (res) => {
+                this.bottlenecks.set(res.bottlenecks);
+                this.bottleneckRecommendations.set(res.generalRecommendations);
+                this.bottleneckLoading.set(false);
+            },
+            error: () => this.bottleneckLoading.set(false),
         });
     }
 

@@ -4,7 +4,7 @@
         <h2 class="text-xl font-semibold m-0">Monitoreo de Trámites</h2>
       </div>
 
-      <!-- Filtros por estado -->
+      <!-- Filtros por estado (botones rápidos) -->
       <div class="flex flex-wrap gap-2 mb-4">
         <p-button label="Todos" icon="pi pi-list" severity="secondary"
           [outlined]="selectedStatus() !== ''"
@@ -23,12 +23,26 @@
           (onClick)="filtrar('WAITING_CLIENT')" />
       </div>
 
+      <!-- Filtros avanzados -->
+      <div class="flex flex-wrap gap-3 mb-4">
+        <p-select [options]="statusOptions" optionLabel="label" optionValue="value"
+                  [(ngModel)]="statusModel"
+                  placeholder="Todos los estados"
+                  [showClear]="true"
+                  (onChange)="selectedStatus.set(statusModel)"
+                  styleClass="w-48" />
+        <input pInputText [(ngModel)]="searchTextModel" placeholder="Buscar por código..."
+               (ngModelChange)="searchText.set($event)" class="w-64 text-sm" />
+        <p-button label="Limpiar" icon="pi pi-times" severity="secondary" [text]="true"
+                  (onClick)="limpiarFiltros()" />
+      </div>
+
       @if (loading()) {
         <div class="flex justify-center items-center h-48">
           <p-progressspinner />
         </div>
       } @else {
-        <p-table [value]="tramites()" [paginator]="true" [rows]="15"
+        <p-table [value]="tramitesFiltrados" [paginator]="true" [rows]="15"
           [rowsPerPageOptions]="[15, 30, 50]" styleClass="p-datatable-sm"
           [globalFilterFields]="['code', 'policyName']">
 
@@ -39,7 +53,7 @@
               <th>Estado</th>
               <th>Nodos activos</th>
               <th>Fecha inicio</th>
-              <th class="w-28">Acciones</th>
+              <th class="w-36">Acciones</th>
             </tr>
           </ng-template>
 
@@ -55,6 +69,9 @@
               <td class="flex gap-1">
                 <p-button label="Ver" icon="pi pi-eye" size="small" [outlined]="true"
                   (onClick)="irDetalle(t.id)" />
+                <p-button icon="pi pi-list" severity="help" [text]="true"
+                  pTooltip="Ver recorrido" tooltipPosition="top"
+                  (onClick)="verRecorrido(t.id)" />
                 <p-button icon="pi pi-comments" size="small" severity="info" [text]="true"
                   pTooltip="Ver chat" tooltipPosition="top"
                   (onClick)="abrirChat(t.id)" />
@@ -117,6 +134,7 @@
       </div>
     </div>
 
+    <!-- Dialog Chat -->
     <p-dialog header="Chat del trámite"
       [visible]="chatVisible()" (visibleChange)="chatVisible.set($event)"
       [modal]="true" [style]="{'width': '480px'}" [draggable]="false">
@@ -124,4 +142,33 @@
         <app-chat-panel [procedureId]="selectedProcedureId()!" />
       }
     </p-dialog>
-    
+
+    <!-- Dialog Recorrido -->
+    <p-dialog header="Recorrido del trámite"
+      [visible]="recorridoVisible()" (visibleChange)="recorridoVisible.set($event)"
+      [modal]="true" [style]="{'width': '600px'}">
+      @if (recorridoLoading()) {
+        <div class="flex justify-center py-4">
+          <p-progressspinner strokeWidth="4" styleClass="w-10 h-10" />
+        </div>
+      } @else {
+        @if (historialSeleccionado().length === 0) {
+          <div class="text-center text-gray-400 py-4">Sin historial disponible.</div>
+        } @else {
+          <p-timeline [value]="historialSeleccionado()">
+            <ng-template pTemplate="content" let-event>
+              <div class="text-sm">
+                <span class="font-semibold">{{ event.eventType }}</span>
+                @if (event.nodeLabel) {
+                  <span class="text-gray-500 ml-1">— {{ event.nodeLabel }}</span>
+                }
+                @if (event.performedByName) {
+                  <span class="text-gray-400 text-xs ml-2">por {{ event.performedByName }}</span>
+                }
+              </div>
+              <div class="text-xs text-gray-400">{{ event.createdAt | date:'dd/MM/yyyy HH:mm' }}</div>
+            </ng-template>
+          </p-timeline>
+        }
+      }
+    </p-dialog>
