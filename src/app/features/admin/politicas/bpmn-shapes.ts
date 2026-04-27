@@ -2,14 +2,34 @@
  * Custom BPMN2 shapes for the workflow policy designer.
  * Extends @joint/plus bpmn2 shapes with project-specific defaults.
  */
-import { shapes, util } from '@joint/plus';
+import { dia, shapes, util } from '@joint/plus';
 
 // ── Layout constants ─────────────────────────────────────────────
 export const POOL_HEADER_SIZE = 40;
 export const LANE_HEADER_SIZE = 30;
 export const LANE_CONTENT_MARGIN = 20;
 export const MIN_LANE_SIZE = 60;
-export const DEFAULT_POOL_WIDTH = 900;
+export const DEFAULT_POOL_WIDTH = 400;
+
+// ── Robust type guards (instanceof + explicit type-string fallback) ───────────
+/** True if element is a horizontal or vertical pool (sw1.Pool / sw1.VerticalPool). */
+export function isPoolEl(el: dia.Element): boolean {
+    return shapes.bpmn2.CompositePool.isPool(el)
+        || el.get('type') === 'sw1.Pool'
+        || el.get('type') === 'sw1.VerticalPool';
+}
+/** True if element is a swimlane (sw1.Lane / sw1.VerticalLane). */
+export function isSwimlaneEl(el: dia.Element): boolean {
+    return shapes.bpmn2.Swimlane.isSwimlane(el)
+        || el.get('type') === 'sw1.Lane'
+        || el.get('type') === 'sw1.VerticalLane';
+}
+/** True if element is a phase (sw1.VerticalPhase / sw1.HorizontalPhase). */
+export function isPhaseEl(el: dia.Element): boolean {
+    return shapes.bpmn2.Phase.isPhase(el)
+        || el.get('type') === 'sw1.VerticalPhase'
+        || el.get('type') === 'sw1.HorizontalPhase';
+}
 
 // ── Pool ─────────────────────────────────────────────────────────
 

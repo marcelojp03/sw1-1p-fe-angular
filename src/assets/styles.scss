@@ -3,3 +3,15 @@
 @use './layout/layout.scss';
 @use 'primeicons/primeicons.css';
 @use './demo/demo.scss';
+
+// ── JointJS FreeTransform: visible selection frame + handles ──────────────────
+.joint-free-transform {
+    border: 1px dashed #3b82f6;
+
+    .resize {
+        &.nw, &.ne, &.se, &.sw {
+            background-color: #3b82f6;
+            border-radius: 50% !important;
+        }
+    }
+}

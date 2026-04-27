@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { environment } from '../../../../environments/environment';
 import {
     ProcedureResponse,
@@ -17,7 +18,9 @@ export class ProcedureService {
     list(organizationId: string, status?: string): Observable<ProcedureSummaryResponse[]> {
         let params = new HttpParams().set('organizationId', organizationId);
         if (status) params = params.set('status', status);
-        return this.http.get<ProcedureSummaryResponse[]>(this.base, { params });
+        return this.http.get<{ content: ProcedureSummaryResponse[] }>(this.base, { params }).pipe(
+            map(page => page.content ?? [])
+        );
     }
 
     get(id: string): Observable<ProcedureResponse> {

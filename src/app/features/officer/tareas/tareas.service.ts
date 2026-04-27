@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { environment } from '../../../../environments/environment';
 import { TaskResponse, CompleteTaskRequest } from './tarea.model';
 
@@ -11,11 +12,15 @@ export class TaskService {
 
     listByArea(areaId: string): Observable<TaskResponse[]> {
         const params = new HttpParams().set('areaId', areaId);
-        return this.http.get<TaskResponse[]>(this.base, { params });
+        return this.http.get<{ content: TaskResponse[] }>(this.base, { params }).pipe(
+            map(page => page.content ?? [])
+        );
     }
 
     listMine(): Observable<TaskResponse[]> {
-        return this.http.get<TaskResponse[]>(`${this.base}/mine`);
+        return this.http.get<{ content: TaskResponse[] }>(`${this.base}/mine`).pipe(
+            map(page => page.content ?? [])
+        );
     }
 
     get(id: string): Observable<TaskResponse> {
