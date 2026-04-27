@@ -17,6 +17,8 @@ import { MultiSelectModule } from 'primeng/multiselect';
 import { PasswordModule } from 'primeng/password';
 import { UsuarioService } from './usuarios.service';
 import { AuthService } from '@/core/services/auth.service';
+import { OrganizationService } from '../organizacion/organizacion.service';
+import { AreaResponse } from '../organizacion/organizacion.model';
 import { UserResponse, RegisterRequest, UpdateUserRequest } from './usuario.model';
 
 const ROLES_DISPONIBLES = [
@@ -36,24 +38,34 @@ const ROLES_DISPONIBLES = [
 export class AdminUsuariosComponent implements OnInit {
     private usuarioService = inject(UsuarioService);
     private authService = inject(AuthService);
+    private orgService = inject(OrganizationService);
     private messageService = inject(MessageService);
     private confirmationService = inject(ConfirmationService);
 
     usuarios = signal<UserResponse[]>([]);
+    areas = signal<AreaResponse[]>([]);
     loading = true;
 
     readonly roles = ROLES_DISPONIBLES;
 
     dialogVisible = false;
-    form: RegisterRequest = { email: '', password: '', fullName: '', roles: [] };
+    form: RegisterRequest = { email: '', password: '', fullName: '', roles: [], areaId: '' };
 
     editarVisible = false;
-    editForm: UpdateUserRequest = { fullName: '', email: '', roles: [] };
+    editForm: UpdateUserRequest = { fullName: '', email: '', roles: [], areaId: '' };
     editId = '';
 
     @ViewChild('dt') dt!: Table;
 
-    ngOnInit(): void { this.load(); }
+    ngOnInit(): void {
+        this.load();
+        const orgId = this.authService.getCurrentUser()?.organizationId;
+        if (orgId) {
+            this.orgService.get(orgId).subscribe({ next: (org) => this.areas.set(org.areas ?? []) });
+        }
+    }
+
+    get areasOptions() { return this.areas().map(a => ({ label: a.name, value: a.id })); }
 
     load(): void {
         this.loading = true;
@@ -73,7 +85,7 @@ export class AdminUsuariosComponent implements OnInit {
     }
 
     nuevo(): void {
-        this.form = { email: '', password: '', fullName: '', roles: [] };
+        this.form = { email: '', password: '', fullName: '', roles: [], areaId: '' };
         this.dialogVisible = true;
     }
 
@@ -108,6 +120,7 @@ export class AdminUsuariosComponent implements OnInit {
             phone: u.phone ?? '',
             positionName: u.positionName ?? '',
             roles: [...u.roles],
+            areaId: u.areaId ?? '',
         };
         this.editarVisible = true;
     }

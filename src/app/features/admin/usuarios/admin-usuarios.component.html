@@ -106,6 +106,13 @@
             <p-multiselect [options]="rolesOptions" [(ngModel)]="form.roles"
                 placeholder="Seleccionar roles" appendTo="body" styleClass="w-full" />
         </div>
+        @if (form.roles.includes('OFFICER') && areasOptions.length > 0) {
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Área asignada</label>
+                <p-select [options]="areasOptions" [(ngModel)]="form.areaId"
+                    placeholder="Seleccionar área" appendTo="body" styleClass="w-full" />
+            </div>
+        }
     </div>
 
     <ng-template #footer>
@@ -142,6 +149,13 @@
             <p-multiselect [options]="rolesOptions" [(ngModel)]="editForm.roles"
                 placeholder="Seleccionar roles" appendTo="body" styleClass="w-full" />
         </div>
+        @if (editForm.roles.includes('OFFICER') && areasOptions.length > 0) {
+            <div class="flex flex-col gap-1">
+                <label class="font-medium text-sm">Área asignada</label>
+                <p-select [options]="areasOptions" [(ngModel)]="editForm.areaId"
+                    placeholder="Seleccionar área" appendTo="body" styleClass="w-full" />
+            </div>
+        }
     </div>
 
     <ng-template #footer>
