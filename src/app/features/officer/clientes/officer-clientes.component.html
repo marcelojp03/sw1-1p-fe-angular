@@ -42,6 +42,7 @@
                 <td>{{ c.email || '—' }}</td>
                 <td>
                     <p-button icon="pi pi-pencil" size="small" severity="secondary" [rounded]="true" [text]="true" (onClick)="editar(c)" />
+                    <p-button icon="pi pi-trash" size="small" severity="danger" [rounded]="true" [text]="true" (onClick)="eliminar(c)" />
                 </td>
             </tr>
         </ng-template>

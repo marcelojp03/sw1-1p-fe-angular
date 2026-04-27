@@ -32,4 +32,8 @@ export class ClientService {
     update(id: string, body: UpdateClientRequest): Observable<ClientResponse> {
         return this.http.put<ClientResponse>(`${this.base}/${id}`, body);
     }
+
+    delete(id: string): Observable<void> {
+        return this.http.delete<void>(`${this.base}/${id}`);
+    }
 }
