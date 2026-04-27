@@ -1,36 +1,32 @@
     <p-toast />
     <div class="p-4">
       <div class="mb-4 flex items-center justify-between">
-        <h2 class="text-xl font-semibold m-0">Monitoreo de Trámites</h2>
+        <div>
+          <h2 class="text-2xl font-bold m-0">Monitoreo de Trámites</h2>
+          <p class="text-sm text-surface-400 m-0 mt-1">Supervisión en tiempo real de todos los trámites de la organización</p>
+        </div>
+        <p-button icon="pi pi-refresh" severity="secondary" [outlined]="true" pTooltip="Recargar" (onClick)="cargar()" />
       </div>
 
-      <!-- Filtros por estado (botones rápidos) -->
+      <!-- Filtros rápidos por estado -->
       <div class="flex flex-wrap gap-2 mb-4">
-        <p-button label="Todos" icon="pi pi-list" severity="secondary"
-          [outlined]="selectedStatus() !== ''"
-          (onClick)="filtrar('')" />
-        <p-button label="En curso" icon="pi pi-spin pi-spinner" severity="info"
-          [outlined]="selectedStatus() !== 'IN_PROGRESS'"
-          (onClick)="filtrar('IN_PROGRESS')" />
-        <p-button label="Completados" icon="pi pi-check-circle" severity="success"
-          [outlined]="selectedStatus() !== 'COMPLETED'"
-          (onClick)="filtrar('COMPLETED')" />
-        <p-button label="Cancelados" icon="pi pi-times-circle" severity="danger"
-          [outlined]="selectedStatus() !== 'CANCELLED'"
-          (onClick)="filtrar('CANCELLED')" />
-        <p-button label="Esperando cliente" icon="pi pi-clock" severity="warn"
-          [outlined]="selectedStatus() !== 'WAITING_CLIENT'"
-          (onClick)="filtrar('WAITING_CLIENT')" />
+        <p-button label="Todos" icon="pi pi-list" severity="secondary" size="small"
+          [outlined]="selectedStatus() !== ''" (onClick)="filtrar('')" />
+        <p-button label="En curso" icon="pi pi-spin pi-spinner" severity="info" size="small"
+          [outlined]="selectedStatus() !== 'IN_PROGRESS'" (onClick)="filtrar('IN_PROGRESS')" />
+        <p-button label="Completados" icon="pi pi-check-circle" severity="success" size="small"
+          [outlined]="selectedStatus() !== 'COMPLETED'" (onClick)="filtrar('COMPLETED')" />
+        <p-button label="Cancelados" icon="pi pi-times-circle" severity="danger" size="small"
+          [outlined]="selectedStatus() !== 'CANCELLED'" (onClick)="filtrar('CANCELLED')" />
+        <p-button label="Esperando cliente" icon="pi pi-clock" severity="warn" size="small"
+          [outlined]="selectedStatus() !== 'WAITING_CLIENT'" (onClick)="filtrar('WAITING_CLIENT')" />
       </div>
 
       <!-- Filtros avanzados -->
       <div class="flex flex-wrap gap-3 mb-4">
         <p-select [options]="statusOptions" optionLabel="label" optionValue="value"
-                  [(ngModel)]="statusModel"
-                  placeholder="Todos los estados"
-                  [showClear]="true"
-                  (onChange)="selectedStatus.set(statusModel)"
-                  styleClass="w-48" />
+                  [(ngModel)]="statusModel" placeholder="Todos los estados" [showClear]="true"
+                  (onChange)="selectedStatus.set(statusModel)" styleClass="w-48" />
         <input pInputText [(ngModel)]="searchTextModel" placeholder="Buscar por código..."
                (ngModelChange)="searchText.set($event)" class="w-64 text-sm" />
         <p-button label="Limpiar" icon="pi pi-times" severity="secondary" [text]="true"
@@ -38,9 +34,7 @@
       </div>
 
       @if (loading()) {
-        <div class="flex justify-center items-center h-48">
-          <p-progressspinner />
-        </div>
+        <div class="flex justify-center items-center h-48"><p-progressspinner /></div>
       } @else {
         <p-table [value]="tramitesFiltrados" [paginator]="true" [rows]="15"
           [rowsPerPageOptions]="[15, 30, 50]" styleClass="p-datatable-sm"
@@ -53,28 +47,42 @@
               <th>Estado</th>
               <th>Nodos activos</th>
               <th>Fecha inicio</th>
-              <th class="w-36">Acciones</th>
+              <th class="text-center">Acciones</th>
             </tr>
           </ng-template>
 
           <ng-template pTemplate="body" let-t>
             <tr>
-              <td class="font-mono text-sm">{{ t.code }}</td>
-              <td>{{ t.policyName }} <span class="text-xs text-surface-400">v{{ t.policyVersion }}</span></td>
+              <td class="font-mono text-sm font-semibold">{{ t.code }}</td>
+              <td>
+                {{ t.policyName }}
+                <span class="text-xs text-surface-400 bg-surface-100 px-1.5 py-0.5 rounded ml-1">v{{ t.policyVersion }}</span>
+              </td>
               <td>
                 <p-tag [value]="statusLabel(t.status)" [severity]="statusSeverity(t.status)" />
               </td>
-              <td class="text-sm">{{ t.currentNodeIds?.length ?? 0 }}</td>
+              <td class="text-sm">
+                @if ((t.currentNodeIds?.length ?? 0) > 0) {
+                  <span class="inline-flex items-center gap-1 text-primary-600 font-medium">
+                    <i class="pi pi-circle-fill text-xs"></i>{{ t.currentNodeIds.length }}
+                  </span>
+                } @else {
+                  <span class="text-surface-400">—</span>
+                }
+              </td>
               <td class="text-sm text-surface-500">{{ t.createdAt | date:'dd/MM/yyyy HH:mm' }}</td>
-              <td class="flex gap-1">
-                <p-button label="Ver" icon="pi pi-eye" size="small" [outlined]="true"
-                  (onClick)="irDetalle(t.id)" />
-                <p-button icon="pi pi-list" severity="help" [text]="true"
-                  pTooltip="Ver recorrido" tooltipPosition="top"
-                  (onClick)="verRecorrido(t.id)" />
-                <p-button icon="pi pi-comments" size="small" severity="info" [text]="true"
-                  pTooltip="Ver chat" tooltipPosition="top"
-                  (onClick)="abrirChat(t.id)" />
+              <td>
+                <div class="flex justify-center gap-1">
+                  <p-button label="Ver" icon="pi pi-eye" size="small" [outlined]="true"
+                    severity="primary" pTooltip="Ver detalle completo" tooltipPosition="top"
+                    (onClick)="irDetalle(t.id)" />
+                  <p-button icon="pi pi-history" size="small" severity="help" [outlined]="true"
+                    pTooltip="Ver recorrido" tooltipPosition="top"
+                    (onClick)="verRecorrido(t.id)" />
+                  <p-button icon="pi pi-comments" size="small" severity="info" [outlined]="true"
+                    pTooltip="Chat del trámite" tooltipPosition="top"
+                    (onClick)="abrirChat(t.id)" />
+                </div>
               </td>
             </tr>
           </ng-template>
@@ -82,6 +90,7 @@
           <ng-template pTemplate="emptymessage">
             <tr>
               <td colspan="6" class="text-center text-surface-400 py-8">
+                <i class="pi pi-inbox text-4xl block mb-2"></i>
                 No hay trámites con el filtro seleccionado.
               </td>
             </tr>
@@ -146,7 +155,7 @@
     <!-- Dialog Recorrido -->
     <p-dialog header="Recorrido del trámite"
       [visible]="recorridoVisible()" (visibleChange)="recorridoVisible.set($event)"
-      [modal]="true" [style]="{'width': '600px'}">
+      [modal]="true" [style]="{'width': '600px', 'max-height': '80vh'}" [draggable]="false" [dismissableMask]="true">
       @if (recorridoLoading()) {
         <div class="flex justify-center py-4">
           <p-progressspinner strokeWidth="4" styleClass="w-10 h-10" />
@@ -155,18 +164,47 @@
         @if (historialSeleccionado().length === 0) {
           <div class="text-center text-gray-400 py-4">Sin historial disponible.</div>
         } @else {
-          <p-timeline [value]="historialSeleccionado()">
+          <p-timeline [value]="historialSeleccionado()" align="left">
+            <ng-template pTemplate="marker" let-event>
+              <span class="flex w-7 h-7 items-center justify-center rounded-full text-white text-xs"
+                [ngClass]="{
+                  'bg-green-500': event.eventType === 'NODE_STARTED',
+                  'bg-blue-600': event.eventType === 'TASK_COMPLETED',
+                  'bg-cyan-500': event.eventType === 'CLIENT_TASK_CREATED' || event.eventType === 'CLIENT_TASK_COMPLETED',
+                  'bg-orange-400': event.eventType === 'STATUS_CHANGED',
+                  'bg-red-500': event.eventType === 'CANCELLED',
+                  'bg-surface-400': !['NODE_STARTED','TASK_COMPLETED','CLIENT_TASK_CREATED','CLIENT_TASK_COMPLETED','STATUS_CHANGED','CANCELLED'].includes(event.eventType)
+                }">
+                <i [ngClass]="{
+                  'pi pi-play text-xs': event.eventType === 'NODE_STARTED',
+                  'pi pi-check text-xs': event.eventType === 'TASK_COMPLETED',
+                  'pi pi-user text-xs': event.eventType === 'CLIENT_TASK_CREATED' || event.eventType === 'CLIENT_TASK_COMPLETED',
+                  'pi pi-refresh text-xs': event.eventType === 'STATUS_CHANGED',
+                  'pi pi-times text-xs': event.eventType === 'CANCELLED',
+                  'pi pi-circle text-xs': !['NODE_STARTED','TASK_COMPLETED','CLIENT_TASK_CREATED','CLIENT_TASK_COMPLETED','STATUS_CHANGED','CANCELLED'].includes(event.eventType)
+                }"></i>
+              </span>
+            </ng-template>
             <ng-template pTemplate="content" let-event>
-              <div class="text-sm">
-                <span class="font-semibold">{{ event.eventType }}</span>
-                @if (event.nodeLabel) {
-                  <span class="text-gray-500 ml-1">— {{ event.nodeLabel }}</span>
+              <div class="mb-4 pb-2">
+                <div class="flex flex-wrap items-center gap-1 mb-1">
+                  <span class="font-semibold text-sm">{{ event.eventType | titlecase }}</span>
+                  @if (event.nodeLabel) {
+                    <span class="text-surface-500 text-sm">— {{ event.nodeLabel }}</span>
+                  }
+                </div>
+                @if (event.notes) {
+                  <p class="text-sm text-surface-600 m-0 mb-1">{{ event.notes }}</p>
                 }
-                @if (event.performedByName) {
-                  <span class="text-gray-400 text-xs ml-2">por {{ event.performedByName }}</span>
-                }
+                <div class="flex flex-wrap gap-3 text-xs text-surface-400">
+                  @if (event.occurredAt) {
+                    <span><i class="pi pi-clock mr-1"></i>{{ event.occurredAt | date:'dd/MM/yyyy HH:mm' }}</span>
+                  }
+                  @if (event.userId) {
+                    <span><i class="pi pi-user mr-1"></i>{{ event.userId }}</span>
+                  }
+                </div>
               </div>
-              <div class="text-xs text-gray-400">{{ event.createdAt | date:'dd/MM/yyyy HH:mm' }}</div>
             </ng-template>
           </p-timeline>
         }

@@ -41,9 +41,9 @@ export interface ProcedureHistory {
     id: string;
     procedureId: string;
     eventType: string;
-    description?: string;
-    performedBy?: string;
     nodeId?: string;
-    taskId?: string;
-    createdAt: string;
+    nodeLabel?: string;
+    userId?: string;
+    notes?: string;
+    occurredAt: string;
 }

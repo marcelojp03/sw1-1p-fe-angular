@@ -133,8 +133,8 @@ export class AdminMonitoreoComponent implements OnInit {
         this.statusModel = status;
     }
 
-    irDetalle(id: number): void {
-        this.router.navigate(['/officer/tramites', id]);
+    irDetalle(id: number | string): void {
+        this.router.navigate(['/admin/tramites', id]);
     }
 
     statusSeverity(status: string): 'info' | 'success' | 'danger' | 'warn' | 'secondary' {

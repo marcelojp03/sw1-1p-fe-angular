@@ -1,6 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
+import { Location } from '@angular/common';
 import { MessageService } from 'primeng/api';
 import { ToastModule } from 'primeng/toast';
 import { ButtonModule } from 'primeng/button';
@@ -28,12 +29,25 @@ export class OfficerTramiteDetalleComponent implements OnInit {
     private route = inject(ActivatedRoute);
     private procedureService = inject(ProcedureService);
     private message = inject(MessageService);
+    private location = inject(Location);
     router = inject(Router);
 
     loading = signal(true);
     loadingHistory = signal(true);
     tramite = signal<ProcedureResponse | null>(null);
     historial = signal<ProcedureHistory[]>([]);
+
+    private isAdminContext(): boolean {
+        return this.router.url.startsWith('/admin');
+    }
+
+    volver(): void {
+        if (this.isAdminContext()) {
+            this.router.navigate(['/admin/monitoreo']);
+        } else {
+            this.router.navigate(['/officer/tramites']);
+        }
+    }
 
     ngOnInit(): void {
         const id = this.route.snapshot.paramMap.get('id') ?? '';
@@ -64,11 +78,11 @@ export class OfficerTramiteDetalleComponent implements OnInit {
 
     markerClass(eventType: string): string {
         const map: Record<string, string> = {
-            STARTED: 'bg-green-500',
-            COMPLETED: 'bg-blue-500',
-            TASK_CREATED: 'bg-yellow-500',
-            TASK_CLAIMED: 'bg-purple-500',
+            NODE_STARTED: 'bg-green-500',
             TASK_COMPLETED: 'bg-blue-600',
+            CLIENT_TASK_CREATED: 'bg-cyan-500',
+            CLIENT_TASK_COMPLETED: 'bg-cyan-600',
+            STATUS_CHANGED: 'bg-orange-400',
             CANCELLED: 'bg-red-500',
             NOTIFICATION_SENT: 'bg-indigo-500',
         };
@@ -77,11 +91,11 @@ export class OfficerTramiteDetalleComponent implements OnInit {
 
     markerIcon(eventType: string): string {
         const map: Record<string, string> = {
-            STARTED: 'pi pi-play',
-            COMPLETED: 'pi pi-check',
-            TASK_CREATED: 'pi pi-plus',
-            TASK_CLAIMED: 'pi pi-user',
+            NODE_STARTED: 'pi pi-play',
             TASK_COMPLETED: 'pi pi-check-circle',
+            CLIENT_TASK_CREATED: 'pi pi-user-plus',
+            CLIENT_TASK_COMPLETED: 'pi pi-user',
+            STATUS_CHANGED: 'pi pi-refresh',
             CANCELLED: 'pi pi-times',
             NOTIFICATION_SENT: 'pi pi-bell',
         };
