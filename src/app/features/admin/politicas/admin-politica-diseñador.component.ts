@@ -206,7 +206,7 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
             background: { color: '#F3F7F6' },
             frozen: true,
             async: true,
-            sorting: dia.Paper.sorting.EXACT,
+            sorting: dia.Paper.sorting.APPROX,
             clickThreshold: 10,
             preventDefaultBlankAction: false,
             preventDefaultViewAction: false,
@@ -244,7 +244,11 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
             },
             validateUnembedding: (childView: any) => {
                 const child = childView.model;
-                return (isPoolEl(child) || isSwimlaneEl(child) || isPhaseEl(child));
+                // Phases MUST NOT be un-embedded via drag — they are positioned
+                // programmatically via addPhase(). Allowing un-embed causes them
+                // to float as orphan elements on the canvas (the blue dashed box).
+                if (isPhaseEl(child)) return false;
+                return (isPoolEl(child) || isSwimlaneEl(child));
             },
             interactive: (cellView: any) => {
                 if (this.isReadOnly()) return false;
@@ -314,15 +318,16 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
                 this._selectedCellId = el.id;
                 this.removeAllTools();
             }
-            const bpmnFtOpts: ui.BPMNFreeTransform.Options = { cellView: view, theme: 'bpmn', resizeGrid: { width: 10, height: 10 }, minLaneSize: MIN_LANE_SIZE };
-            const ftOpts: ui.FreeTransform.Options = { cellView: view, allowRotation: false, resizeGrid: { width: 10, height: 10 } };
+            // BPMNFreeTransform funciona para todos los elementos (pools, lanes, phases y shapes)
+            // tema 'bpmn' es lo que habilita el resize por borde, igual que en el proyecto de referencia
+            const ftOpts: ui.BPMNFreeTransform.Options = { cellView: view, theme: 'bpmn', resizeGrid: { width: 10, height: 10 }, minLaneSize: MIN_LANE_SIZE };
             if (isPoolEl(el)) {
                 this.selected.set(null); this.selectedLane.set(null); this.selectedLink.set(null);
                 if (!alreadySelected) {
                     view.addTools(new dia.ToolsView({
                         tools: [new elementTools.Remove({ x: -15, y: 0 })],
                     }));
-                    new ui.BPMNFreeTransform(bpmnFtOpts);
+                    new ui.BPMNFreeTransform(ftOpts);
                 }
             } else if (isSwimlaneEl(el)) {
                 this.selected.set(null); this.selectedLink.set(null);
@@ -331,7 +336,7 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
                     view.addTools(new dia.ToolsView({
                         tools: [new elementTools.Remove({ x: -15, y: 0 })],
                     }));
-                    new ui.BPMNFreeTransform(bpmnFtOpts);
+                    new ui.BPMNFreeTransform(ftOpts);
                 }
             } else {
                 this.selectedLink.set(null); this.selectedLane.set(null);
@@ -343,7 +348,7 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
                             new elementTools.Connect({ x: 'calc(w + 15)', y: '50%' }),
                         ],
                     }));
-                    new ui.FreeTransform(ftOpts).render();
+                    new ui.BPMNFreeTransform(ftOpts);
                 }
             }
         });
@@ -386,14 +391,14 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
             this.scroller.startPanning(evt);
         });
 
-        // Al empezar a arrastrar una lane o phase: bloquear movimiento libre
-        // (se snappea al pool destino en pointerup, igual que bpmn-editor)
+        // Al empezar a arrastrar una lane o phase: guardar el pool de origen
+        // NO llamar preventDefaultInteraction — congela todo el canvas después del drop
         (this.paper as any).on('element:pointerdown', (view: any, evt: any) => {
             const el = view.model as dia.Element;
             if (isSwimlaneEl(el) || isPhaseEl(el)) {
                 evt.data = evt.data || {};
                 evt.data.targetPoolView = null;
-                view.preventDefaultInteraction(evt);
+                evt.data.originalPool = el.getParentCell() ?? null;
             }
         });
 
@@ -401,6 +406,12 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
         (this.paper as any).on('element:pointermove', (view: any, evt: any, x: number, y: number) => {
             const el = view.model as dia.Element;
             if (!isSwimlaneEl(el) && !isPhaseEl(el)) return;
+            // Con usePaperGrid:true, el stencil y el paper tienen cadenas de eventos
+            // SEPARADAS con sus propios evt.data. El flag isStencilDrag del stencil
+            // nunca llega al evt.data del paper. En cambio, detectamos clones del
+            // stencil verificando que no tienen parent todavía (getParentCell() === null).
+            // Los elementos del canvas SIEMPRE están embebidos → tienen parent.
+            if (!el.getParentCell()) return; // stencil clone → el stencil lo maneja
             this.clearLaneDropHighlight();
             const views = this.paper.findViewsFromPoint({ x, y });
             const poolView = views.find(
@@ -415,46 +426,62 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
             }
         });
 
-        // Al soltar: integrar lane/phase en el pool destino, o ajustar pool si es elemento regular
+        // Al soltar: integrar lane/phase en el pool destino (o re-embeber en el de origen),
+        // o ajustar el pool cuando se mueve un elemento regular dentro de una lane.
         (this.paper as any).on('element:pointerup', (view: any, evt: any, x: number, y: number) => {
             this.clearLaneDropHighlight();
             const el = view.model as dia.Element;
 
+            // Clones del stencil: no tienen parent cell todavía (aún no embebidos).
+            // element:drop del stencil los maneja. Si también los procesamos aquí,
+            // addPhase/addSwimlane se llama DOS VECES (una aquí y otra en element:drop),
+            // la segunda llamada corrompe la estructura → la fase/lane desaparece.
+            // Los elementos canvas SIEMPRE tienen parent (validateUnembedding=false).
+            if ((isSwimlaneEl(el) || isPhaseEl(el)) && !el.getParentCell()) return;
+
             if (isSwimlaneEl(el)) {
-                const targetPool = (evt?.data?.targetPoolView?.model) as shapes.bpmn2.CompositePool | undefined;
+                // Usar el pool bajo el cursor; si no hay, volver al pool de origen
+                const targetPool = (evt?.data?.targetPoolView?.model
+                    ?? evt?.data?.originalPool) as shapes.bpmn2.CompositePool | undefined;
                 if (targetPool) {
                     const lane = el as unknown as shapes.bpmn2.Swimlane;
-                    let compatibleLane = lane;
+                    const insertIndex = targetPool.getSwimlaneInsertIndexFromPoint?.({ x, y }) ?? undefined;
                     if (!(lane as any).isCompatibleWithPool?.(targetPool)) {
+                        // Reemplazar con lane del tipo correcto dentro de un batch
+                        // para evitar que el paper intente renderizar un estado intermedio
                         const text = (lane as any).attr?.('headerText/text') as string || 'Nueva área';
                         const data = (lane as any).get?.('data') ?? {};
+                        this.graph.startBatch('lane-replace');
                         lane.remove();
-                        compatibleLane = targetPool.isHorizontal()
+                        const compatibleLane = targetPool.isHorizontal()
                             ? new BPMNLane({ attrs: { headerText: { text, fontFamily: 'sans-serif' } }, data } as any) as unknown as shapes.bpmn2.Swimlane
                             : new BPMNVerticalLane({ attrs: { headerText: { text, fontFamily: 'sans-serif' } }, data } as any) as unknown as shapes.bpmn2.Swimlane;
+                        targetPool.addSwimlane(compatibleLane, insertIndex);
+                        this.graph.stopBatch('lane-replace');
+                    } else {
+                        targetPool.addSwimlane(lane, insertIndex);
                     }
-                    const insertIndex = targetPool.getSwimlaneInsertIndexFromPoint?.({ x, y }) ?? undefined;
-                    targetPool.addSwimlane(compatibleLane, insertIndex);
                     this.pool = targetPool as unknown as BPMNPool;
                 }
                 return;
             }
 
             if (isPhaseEl(el)) {
-                const targetPool = (evt?.data?.targetPoolView?.model) as shapes.bpmn2.CompositePool | undefined;
+                const targetPool = (evt?.data?.targetPoolView?.model
+                    ?? evt?.data?.originalPool) as shapes.bpmn2.CompositePool | undefined;
                 if (targetPool) {
                     const text = (el as any).attr?.('headerText/text') as string || 'Etapa';
-                    el.remove();
-                    const phase = targetPool.isHorizontal()
-                        ? new BPMNVerticalPhase({ attrs: { headerText: { text, fontFamily: 'sans-serif' } } } as any)
-                        : new BPMNHorizontalPhase({ attrs: { headerText: { text, fontFamily: 'sans-serif' } } } as any);
                     const oCoord = (targetPool as any).getPhaseOrthogonalCoordinate?.() as 'x' | 'y' ?? 'x';
                     const dropPos = oCoord === 'x' ? x : y;
                     const existingPhases: unknown[] = (targetPool as any).getPhases?.() ?? [];
                     const overlapped = (targetPool as any).findPhaseFromOrthogonalCoord?.(dropPos);
                     if (existingPhases.length === 0 || overlapped) {
-                        (targetPool as any).addPhase(phase, dropPos);
+                        // el ya está en el grafo con su vista → usarlo directamente
+                        // No remover y recrear: el nuevo elemento no estaría en el grafo
+                        // y addPhase fallaría al intentar obtener getBBox de la vista
+                        (targetPool as any).addPhase(el, dropPos);
                     }
+                    // else: drop fuera de rango, dejar el donde JointJS lo ubicó
                 }
                 return;
             }
@@ -570,6 +597,9 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
         (this.stencil as any).on('element:dragstart', (_app: any, _cloneView: any, evt: any) => {
             evt.data = evt.data || {};
             evt.data.poolView = null;
+            // NOTA: isStencilDrag ya NO se usa para discriminar en paper events.
+            // Con usePaperGrid:true, stencil y paper tienen evt.data SEPARADOS.
+            // La discriminación se hace por getParentCell() en los handlers del paper.
         });
 
         (this.stencil as any).on('element:drag', (_app: any, cloneView: any, evt: any) => {
@@ -589,7 +619,14 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
             }
         });
 
-        (this.stencil as any).on('element:dragend', () => { this.clearLaneDropHighlight(); });
+        // element:dragend: solo limpiar highlights visuales.
+        // El proyecto de referencia (BPMNController / onPhaseDragEnd) nunca elimina
+        // clones aquí. La limpieza de orphans se hace en element:drop (ver abajo).
+        // Eliminar clones aquí puede ejecutarse ANTES que element:drop, borrando el
+        // clone justo cuando addPhase lo necesita → la fase no aparece.
+        (this.stencil as any).on('element:dragend', () => {
+            this.clearLaneDropHighlight();
+        });
 
         // ── Stencil element:drop ──────────────────────────────────────────
 
@@ -616,33 +653,58 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
                 this.pool = el as unknown as BPMNPool;
 
             } else if (isSwimlaneEl(el) || isPhaseEl(el)) {
-                // Lane/phase dropped: use the pool highlighted during drag, or fallback to this.pool
-                const poolView = evt?.data?.poolView;
-                const targetPool = (poolView?.model ?? (this.pool as unknown as dia.Element)) as unknown as shapes.bpmn2.CompositePool;
+                // Detectar el pool destino usando coordenadas paper del drop (más confiable
+                // que evt.data.poolView que depende de detección por coords de cliente durante drag).
+                const viewsAtDrop = this.paper.findViewsFromPoint({ x, y });
+                const poolViewAtDrop = viewsAtDrop.find((v: any) => isPoolEl(v.model)) ?? null;
+                // Fallback: poolView detectado durante drag → fallback a this.pool
+                const effectivePoolView = poolViewAtDrop
+                    ?? evt?.data?.poolView
+                    ?? (this.pool ? this.paper.findViewByModel(this.pool as unknown as dia.Cell) : null);
+
+                if (!effectivePoolView) {
+                    // Drop fuera de cualquier pool: eliminar el clone si no está embebido.
+                    if (!(el as any).isEmbedded?.()) el.remove();
+                    return;
+                }
+                const targetPool = (effectivePoolView as any).model as shapes.bpmn2.CompositePool;
                 if (targetPool) {
                     if (isPhaseEl(el)) {
-                        // Match the demo: replace the dropped clone with a properly-typed phase
-                        el.remove();
-                        const phase = targetPool.isHorizontal()
-                            ? new BPMNVerticalPhase({
-                                attrs: { headerText: { text: 'Etapa', fontFamily: 'sans-serif' } },
-                              } as any)
-                            : new BPMNHorizontalPhase({
-                                attrs: { headerText: { text: 'Etapa', fontFamily: 'sans-serif' } },
-                              } as any);
-                        // addPhase(phase, position) – position is the orthogonal coord of the drop.
-                        // Guard: if there are phases and no phase overlaps the drop point, skip.
+                        // Seguir el patrón del demo (onPhaseDrop en phases.ts):
+                        // usar el clone directamente si es compatible; solo reemplazar si no.
+                        this.graph.startBatch('phase-stencil-drop');
+                        const phaseEl = el as unknown as shapes.bpmn2.Phase;
+                        const isCompat = (phaseEl as any).isCompatibleWithPool?.(targetPool);
+                        let compatiblePhase: shapes.bpmn2.Phase = phaseEl;
+                        if (!isCompat) {
+                            // Orientation mismatch: remove stencil clone, create correct type
+                            (phaseEl as dia.Element).remove();
+                            const newPhase = targetPool.isHorizontal()
+                                ? new BPMNVerticalPhase({
+                                    attrs: { headerText: { text: 'Etapa', fontFamily: 'sans-serif' } },
+                                  } as any)
+                                : new BPMNHorizontalPhase({
+                                    attrs: { headerText: { text: 'Etapa', fontFamily: 'sans-serif' } },
+                                  } as any);
+                            // Agregar al grafo explícitamente antes de addPhase
+                            this.graph.addCell(newPhase as dia.Cell);
+                            compatiblePhase = newPhase as unknown as shapes.bpmn2.Phase;
+                        }
                         const oCoord = (targetPool as any).getPhaseOrthogonalCoordinate?.() as 'x' | 'y' ?? 'x';
                         const dropPos = oCoord === 'x' ? x : y;
-                        const overlapped = (targetPool as any).findPhaseFromOrthogonalCoord?.(dropPos);
                         const existingPhases: unknown[] = (targetPool as any).getPhases?.() ?? [];
+                        const overlapped = (targetPool as any).findPhaseFromOrthogonalCoord?.(dropPos);
                         if (existingPhases.length > 0 && !overlapped) {
-                            // Would throw — drop is outside any existing phase column; silently skip
+                            // Drop fuera del rango de fases existentes — no se puede insertar
+                            (compatiblePhase as dia.Element).remove();
                         } else {
-                            (targetPool as any).addPhase(phase, dropPos);
+                            (targetPool as any).addPhase(compatiblePhase, dropPos);
                         }
+                        this.graph.stopBatch('phase-stencil-drop');
                     } else {
-                        // Swimlane: use the original dropped element (compatible) or replace if needed
+                        // Swimlane: si es compatible usar directamente, si no reemplazar
+                        // Batch para evitar renders intermedios
+                        this.graph.startBatch('lane-stencil-drop');
                         let compatibleLane = el as unknown as shapes.bpmn2.Swimlane;
                         if (!(el as unknown as shapes.bpmn2.Swimlane).isCompatibleWithPool?.(targetPool)) {
                             el.remove();
@@ -658,6 +720,7 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
                         }
                         const insertIndex = targetPool.getSwimlaneInsertIndexFromPoint?.({ x, y }) ?? undefined;
                         targetPool.addSwimlane(compatibleLane, insertIndex);
+                        this.graph.stopBatch('lane-stencil-drop');
                     }
                     this.pool = targetPool as unknown as BPMNPool;
                 } else {
@@ -1089,7 +1152,7 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
 
     private removeAllTools(): void {
         if (!this.paper) return;
-        ui.FreeTransform.clear(this.paper);
+        ui.BPMNFreeTransform.clear(this.paper);
         this.paper.removeTools();
     }
 
