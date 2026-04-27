@@ -8,6 +8,9 @@
 
 # Node
 /node_modules
+
+# Token privado JointJS+ (no subir a git)
+.npmrc
 npm-debug.log
 yarn-error.log
 

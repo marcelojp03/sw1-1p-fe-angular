@@ -37,8 +37,8 @@
                             }
                         ],
                         "styles": [
-                            "src/assets/styles.scss",
-                            "node_modules/jointjs/dist/joint.css"
+                            "node_modules/@joint/plus/joint-plus.css",
+                            "src/assets/styles.scss"
                         ],
                         "scripts": []
                     },
@@ -112,6 +112,7 @@
                             }
                         ],
                         "styles": [
+                            "node_modules/@joint/plus/joint-plus.css",
                             "src/styles.scss"
                         ],
                         "scripts": []

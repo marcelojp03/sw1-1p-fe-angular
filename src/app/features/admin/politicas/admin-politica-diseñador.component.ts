@@ -17,7 +17,11 @@ import { DividerModule } from 'primeng/divider';
 import { TooltipModule } from 'primeng/tooltip';
 import { DialogModule } from 'primeng/dialog';
 import { CheckboxModule } from 'primeng/checkbox';
-import * as joint from 'jointjs';
+import { dia, ui, shapes } from '@joint/plus';
+import {
+    BPMNPool, BPMNPoolView, BPMNLane, BPMNLaneView,
+    APP_SHAPES, DEFAULT_POOL_WIDTH, MIN_LANE_SIZE, LANE_HEADER_SIZE,
+} from './bpmn-shapes';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { PoliticaService } from './politicas.service';
@@ -33,7 +37,7 @@ import {
 import { DiagramPatchMessage } from '../../../shared/models/chat.model';
 import { environment } from '../../../../environments/environment';
 
-interface NodeDef { type: NodeType; label: string; icon: string; color: string; shape: string; }
+interface NodeDef { type: NodeType; label: string; icon: string; color: string; bpmnType: 'event' | 'activity' | 'gateway'; }
 interface SelectedNodeData {
     cellId: string;
     nodeType: NodeType;
@@ -42,6 +46,11 @@ interface SelectedNodeData {
     estimatedMinutes: number | null;
     condition: string;
     formFields: FormField[];
+}
+interface SelectedLaneData {
+    cellId: string;
+    label: string;
+    areaId: string;
 }
 
 @Component({
@@ -55,20 +64,21 @@ interface SelectedNodeData {
     providers: [MessageService],
     styles: [`
         :host { display: block; height: 100%; }
-        .canvas-wrapper { cursor: default; background: #f8fafc; }
+        .canvas-wrapper { overflow: hidden; background: #f1f5f9; }
         .canvas-wrapper.link-mode { cursor: crosshair; }
-        #joint-canvas { width: 100%; min-height: 600px; }
+        #joint-canvas { width: 100%; height: 100%; }
         .palette-btn {
             display: flex; align-items: center; gap: 8px;
-            padding: 8px 12px; border-radius: 6px; cursor: pointer;
-            border: 1px solid #e2e8f0; background: #fff; font-size: 13px;
-            transition: background 0.15s;
+            padding: 8px 10px; border-radius: 6px; cursor: pointer;
+            border: 1px solid #e2e8f0; background: #fff; font-size: 12px;
+            transition: background 0.15s; text-align: left;
         }
         .palette-btn:hover { background: #f1f5f9; }
         .palette-btn .dot { width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0; }
-        .palette-btn .sq { width: 16px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+        .palette-btn .sq  { width: 16px; height: 12px; border-radius: 3px; flex-shrink: 0; }
         .palette-btn .diamond { width: 14px; height: 14px; transform: rotate(45deg); border-radius: 2px; flex-shrink: 0; }
-        .palette-btn .bar { width: 16px; height: 6px; border-radius: 1px; flex-shrink: 0; }
+        .palette-btn.lane-btn { background: #f8fafc; border-style: dashed; }
+        .palette-btn.lane-btn:hover { background: #e2e8f0; }
     `],
     templateUrl: './admin-politica-diseñador.component.html',
 })
@@ -89,6 +99,7 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
     linkMode = signal(false);
     politica = signal<PolicyResponse | null>(null);
     selected = signal<SelectedNodeData | null>(null);
+    selectedLane = signal<SelectedLaneData | null>(null);
     selectedLink = signal<{ cellId: string; label: string; condition: string } | null>(null);
     formDialogVisible = false;
     newField = { name: '', label: '', type: 'TEXT', required: false, optionsStr: '' };
@@ -108,6 +119,7 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
         const s = this.politica()?.status;
         return s === 'PUBLISHED' || s === 'ARCHIVED';
     });
+
     fieldTypes = [
         { label: 'Texto', value: 'TEXT' },
         { label: 'Número', value: 'NUMBER' },
@@ -118,23 +130,25 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
         { label: 'Archivo', value: 'FILE' },
     ];
 
-    private graph!: joint.dia.Graph;
-    private paper!: joint.dia.Paper;
+    private graph: dia.Graph;
+    private paper: dia.Paper;
+    private scroller: ui.PaperScroller;
+    private pool: BPMNPool | null = null;
     private policyId!: string;
     private stompClient?: Client;
     private wsUrl = environment.api.baseUrl.replace('/api', '') + '/ws';
     private isReceivingPatch = false;
 
     nodeDefs: NodeDef[] = [
-        { type: 'START',          label: 'Inicio',          icon: 'pi-play',      color: '#000',    shape: 'circle'  },
-        { type: 'MANUAL_FORM',    label: 'Formulario',      icon: 'pi-file-edit', color: '#3B82F6', shape: 'rect'    },
-        { type: 'MANUAL_ACTION',  label: 'Acción Manual',   icon: 'pi-user',      color: '#8B5CF6', shape: 'rect'    },
-        { type: 'CLIENT_TASK',    label: 'Tarea Cliente',   icon: 'pi-mobile',    color: '#06B6D4', shape: 'rect'    },
-        { type: 'CONDITION',      label: 'Condición',       icon: 'pi-code',      color: '#F59E0B', shape: 'diamond' },
-        { type: 'NOTIFICATION',   label: 'Notificación',    icon: 'pi-bell',      color: '#10B981', shape: 'rect'    },
-        { type: 'PARALLEL_SPLIT', label: 'Bifurcación',     icon: 'pi-share-alt', color: '#64748B', shape: 'bar'     },
-        { type: 'PARALLEL_JOIN',  label: 'Unión',           icon: 'pi-sitemap',   color: '#64748B', shape: 'bar'     },
-        { type: 'END',            label: 'Fin',             icon: 'pi-stop',      color: '#EF4444', shape: 'circle'  },
+        { type: 'START',          label: 'Inicio',          icon: 'pi-play',      color: '#000',    bpmnType: 'event'    },
+        { type: 'MANUAL_FORM',    label: 'Formulario',      icon: 'pi-file-edit', color: '#3B82F6', bpmnType: 'activity' },
+        { type: 'MANUAL_ACTION',  label: 'Acción Manual',   icon: 'pi-user',      color: '#8B5CF6', bpmnType: 'activity' },
+        { type: 'CLIENT_TASK',    label: 'Tarea Cliente',   icon: 'pi-mobile',    color: '#06B6D4', bpmnType: 'activity' },
+        { type: 'CONDITION',      label: 'Condición',       icon: 'pi-code',      color: '#F59E0B', bpmnType: 'gateway'  },
+        { type: 'NOTIFICATION',   label: 'Notificación',    icon: 'pi-bell',      color: '#10B981', bpmnType: 'activity' },
+        { type: 'PARALLEL_SPLIT', label: 'Bifurcación',     icon: 'pi-share-alt', color: '#64748B', bpmnType: 'gateway'  },
+        { type: 'PARALLEL_JOIN',  label: 'Unión',           icon: 'pi-sitemap',   color: '#64748B', bpmnType: 'gateway'  },
+        { type: 'END',            label: 'Fin',             icon: 'pi-stop',      color: '#EF4444', bpmnType: 'event'    },
     ];
 
     ngOnInit(): void {
@@ -147,120 +161,206 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
     }
 
     ngAfterViewInit(): void { /* canvas initialized after data loads */ }
+
     ngOnDestroy(): void {
-        if (this.paper) { (this.paper as any).remove?.(); }
+        this.scroller?.remove();
         this.stompClient?.deactivate();
     }
 
     private initCanvas(p: PolicyResponse): void {
         if (!this.canvasEl?.nativeElement) return;
-        this.graph = new joint.dia.Graph({}, { cellNamespace: joint.shapes });
-        this.paper = new joint.dia.Paper({
-            el: this.canvasEl.nativeElement,
+
+        this.graph = new dia.Graph({}, { cellNamespace: APP_SHAPES });
+
+        const el = this.canvasEl.nativeElement;
+        const paperWidth = el.offsetWidth || 1600;
+        const paperHeight = el.offsetHeight || 900;
+
+        this.paper = new dia.Paper({
             model: this.graph,
-            width: '100%',
-            height: 600,
+            cellViewNamespace: APP_SHAPES,
+            width: paperWidth,
+            height: paperHeight,
             gridSize: 10,
             drawGrid: { name: 'dot', args: [{ color: '#cbd5e1', thickness: 1 }] } as any,
-            background: { color: '#f8fafc' },
-            cellViewNamespace: joint.shapes,
-            interactive: () => !this.linkMode(),
-            defaultLink: () => new joint.shapes.standard.Link({
-                attrs: { line: { stroke: '#64748b', strokeWidth: 2, targetMarker: { type: 'path', d: 'M 10 -5 0 0 10 5 Z' } } },
-            }),
+            background: { color: '#f1f5f9' },
+            frozen: true,
+            async: true,
+            embeddingMode: true,
+            findParentBy: 'center',
+            frontParentOnly: false,
             linkPinning: false,
-            validateConnection: (cvS: any, _mS: any, cvT: any) => cvS.model !== cvT.model,
+            defaultLink: () => new shapes.bpmn2.Flow() as unknown as dia.Link,
+            validateConnection: (cvS: any, _mS: any, cvT: any) => {
+                if (cvS === cvT) return false;
+                const s = cvS.model, t = cvT.model;
+                if (shapes.bpmn2.Swimlane.isSwimlane(s) || shapes.bpmn2.Swimlane.isSwimlane(t)) return false;
+                if (shapes.bpmn2.CompositePool.isPool(s) || shapes.bpmn2.CompositePool.isPool(t)) return false;
+                return true;
+            },
+            validateEmbedding: (childView: any, parentView: any) => {
+                const child = childView.model, parent = parentView.model;
+                if (shapes.bpmn2.CompositePool.isPool(child) || shapes.bpmn2.Swimlane.isSwimlane(child)) return false;
+                return shapes.bpmn2.Swimlane.isSwimlane(parent);
+            },
+            interactive: (cellView: any) => {
+                if (this.isReadOnly()) return false;
+                const cell = cellView.model;
+                if (shapes.bpmn2.Swimlane.isSwimlane(cell)) return { stopDelegation: false };
+                return true;
+            },
         } as any);
 
-        // Load existing diagram
+        this.scroller = new ui.PaperScroller({
+            paper: this.paper,
+            autoResizePaper: true,
+            cursor: 'grab',
+        });
+        this.canvasEl.nativeElement.appendChild(this.scroller.el);
+        this.scroller.render();
+
+        // Load existing diagram or create initial pool
         if (p.diagram && Array.isArray(p.diagram.cells) && p.diagram.cells.length) {
-            try { this.graph.fromJSON(p.diagram); } catch { /* diagrama vacío o incompatible */ }
+            try {
+                this.graph.fromJSON(p.diagram);
+                const poolCell = this.graph.getCells().find(c => shapes.bpmn2.CompositePool.isPool(c));
+                if (poolCell) this.pool = poolCell as unknown as BPMNPool;
+            } catch { /* empty or incompatible */ }
+        }
+        if (!this.pool) {
+            this.createInitialPool(p.name);
         }
 
-        // Events
+        this.scroller.center();
+        this.paper.unfreeze();
+
+        // ── Paper events ──────────────────────────────────────────
         this.paper.on('element:pointerclick', (view: any) => {
             if (this.linkMode()) return;
-            this.selectedLink.set(null);
-            this.onSelectElement(view.model as joint.dia.Element);
+            const el = view.model as dia.Element;
+            if (shapes.bpmn2.CompositePool.isPool(el)) {
+                this.selected.set(null); this.selectedLane.set(null); this.selectedLink.set(null);
+            } else if (shapes.bpmn2.Swimlane.isSwimlane(el)) {
+                this.selected.set(null); this.selectedLink.set(null);
+                this.onSelectLane(el as unknown as shapes.bpmn2.Swimlane);
+            } else {
+                this.selectedLink.set(null); this.selectedLane.set(null);
+                this.onSelectElement(el);
+            }
         });
         this.paper.on('link:pointerclick', (view: any) => {
             if (this.linkMode()) return;
-            this.selected.set(null);
-            this.onSelectLink(view.model as joint.dia.Link);
+            this.selected.set(null); this.selectedLane.set(null);
+            this.onSelectLink(view.model as dia.Link);
         });
         this.paper.on('blank:pointerclick', () => {
-            this.selected.set(null);
-            this.selectedLink.set(null);
+            this.selected.set(null); this.selectedLane.set(null); this.selectedLink.set(null);
         });
+    }
+
+    private createInitialPool(name: string): void {
+        this.pool = new BPMNPool({
+            size: { width: DEFAULT_POOL_WIDTH, height: 240 },
+            position: { x: 60, y: 60 },
+            attrs: { headerText: { text: name } },
+        } as any);
+        const lane = new BPMNLane({
+            attrs: { headerText: { text: 'Área principal' } },
+            data: { assignedAreaId: '', label: 'Área principal' },
+        } as any);
+        this.graph.addCell(this.pool);
+        (this.pool as any).addSwimlane(lane);
     }
 
     addNode(nd: NodeDef): void {
         if (!this.graph) return;
-        const el = this.buildShape(nd, 80 + Math.random() * 300, 80 + Math.random() * 300);
+        const lane = this.getActiveLane();
+        let x = 200 + Math.random() * 200;
+        let y = 100 + Math.random() * 80;
+        if (lane) {
+            const pos = lane.position();
+            const sz = lane.size();
+            x = pos.x + LANE_HEADER_SIZE + 60 + Math.random() * Math.max(sz.width - LANE_HEADER_SIZE - 200, 50);
+            y = pos.y + 30 + Math.random() * Math.max(sz.height - 100, 40);
+        }
+        const el = this.buildBPMNShape(nd, x, y);
         this.graph.addCell(el);
+        if (lane) (lane as any).embed(el);
     }
 
-    private buildShape(nd: NodeDef, x: number, y: number): joint.dia.Element {
+    addLane(): void {
+        if (!this.pool || !this.graph) return;
+        const lane = new BPMNLane({
+            attrs: { headerText: { text: 'Nueva área' } },
+            data: { assignedAreaId: '', label: 'Nueva área' },
+        } as any);
+        (this.pool as any).addSwimlane(lane);
+    }
+
+    private getActiveLane(): shapes.bpmn2.Swimlane | null {
+        if (this.selectedLane()) {
+            const cell = this.graph.getCell(this.selectedLane()!.cellId);
+            if (cell && shapes.bpmn2.Swimlane.isSwimlane(cell)) return cell as unknown as shapes.bpmn2.Swimlane;
+        }
+        if (this.pool) {
+            const lanes = (this.pool as any).getSwimlanes?.() as shapes.bpmn2.Swimlane[] ?? [];
+            return lanes[0] ?? null;
+        }
+        return null;
+    }
+
+    private buildBPMNShape(nd: NodeDef, x: number, y: number): dia.Element {
         const data = { nodeType: nd.type, label: nd.label };
 
-        if (nd.shape === 'circle') {
+        if (nd.bpmnType === 'event') {
             const isEnd = nd.type === 'END';
-            return new joint.shapes.standard.Circle({
+            return new shapes.bpmn2.Event({
                 position: { x, y },
-                size: { width: 48, height: 48 },
+                size: { width: 40, height: 40 },
+                eventType: isEnd ? 'end' : 'start',
                 attrs: {
-                    body: { fill: nd.type === 'START' ? '#000' : '#fff', stroke: '#000', strokeWidth: isEnd ? 6 : 1.5 },
-                    label: { text: nd.label, fill: nd.type === 'START' ? '#fff' : '#000', fontSize: 10, textAnchor: 'middle', refX: '50%', refY: '130%' },
+                    label: { text: nd.label, fontFamily: 'sans-serif' },
+                    background: isEnd ? { fill: '#fef2f2', stroke: '#ef4444', strokeWidth: 4 } : { fill: '#f0f9ff', stroke: '#000', strokeWidth: 1.5 },
                 },
                 data,
-            } as any);
+            } as any) as dia.Element;
         }
 
-        if (nd.shape === 'diamond') {
-            return new joint.shapes.standard.Polygon({
+        if (nd.bpmnType === 'gateway') {
+            const gatewayType = (nd.type === 'PARALLEL_SPLIT' || nd.type === 'PARALLEL_JOIN') ? 'parallel' : 'exclusive';
+            return new shapes.bpmn2.Gateway({
                 position: { x, y },
-                size: { width: 90, height: 70 },
+                size: { width: 56, height: 56 },
+                gatewayType,
                 attrs: {
-                    body: { refPoints: '45 0, 90 35, 45 70, 0 35', fill: '#FEF3C7', stroke: '#D97706', strokeWidth: 1.5 },
-                    label: { text: nd.label, fill: '#92400E', fontSize: 11, textAnchor: 'middle', refX: '50%', refY: '50%' },
+                    label: { text: nd.label, fontFamily: 'sans-serif' },
+                    body: { fill: '#fefce8', stroke: '#d97706', strokeWidth: 1.5 },
                 },
                 data,
-            } as any);
+            } as any) as dia.Element;
         }
 
-        if (nd.shape === 'bar') {
-            return new joint.shapes.standard.Rectangle({
-                position: { x, y },
-                size: { width: 120, height: 12 },
-                attrs: {
-                    body: { fill: '#334155', stroke: '#334155', rx: 0 },
-                    label: { text: nd.label, fill: '#fff', fontSize: 9, textAnchor: 'middle', refX: '50%', refY: '-150%' },
-                },
-                data,
-            } as any);
-        }
-
-        // Default: rect
-        const colorMap: Partial<Record<NodeType, { bg: string; border: string; text: string }>> = {
-            MANUAL_FORM:   { bg: '#EFF6FF', border: '#3B82F6', text: '#1E40AF' },
-            MANUAL_ACTION: { bg: '#F3E8FF', border: '#8B5CF6', text: '#6B21A8' },
-            CLIENT_TASK:   { bg: '#ECFEFF', border: '#06B6D4', text: '#155E75' },
-            NOTIFICATION:  { bg: '#ECFDF5', border: '#10B981', text: '#065F46' },
+        // Activity (task)
+        const colorMap: Partial<Record<NodeType, { bg: string; border: string }>> = {
+            MANUAL_FORM:   { bg: '#eff6ff', border: '#3b82f6' },
+            MANUAL_ACTION: { bg: '#f3e8ff', border: '#8b5cf6' },
+            CLIENT_TASK:   { bg: '#ecfeff', border: '#06b6d4' },
+            NOTIFICATION:  { bg: '#ecfdf5', border: '#10b981' },
         };
-        const c = colorMap[nd.type] ?? { bg: '#F8FAFC', border: '#94A3B8', text: '#0F172A' };
-        const isDashed = nd.type === 'CLIENT_TASK';
-        return new joint.shapes.standard.Rectangle({
+        const c = colorMap[nd.type] ?? { bg: '#f8fafc', border: '#94a3b8' };
+        return new shapes.bpmn2.Activity({
             position: { x, y },
-            size: { width: 130, height: 50 },
+            size: { width: 140, height: 56 },
+            activityType: 'task',
             attrs: {
-                body: { fill: c.bg, stroke: c.border, strokeWidth: 1.5, rx: 8, strokeDasharray: isDashed ? '5,3' : '' },
-                label: { text: nd.label, fill: c.text, fontSize: 12, textAnchor: 'middle', refX: '50%', refY: '50%', textWrap: { width: 120, height: 40 } },
+                label: { text: nd.label, fontFamily: 'sans-serif', fontSize: 12 },
+                background: { fill: c.bg, stroke: c.border, strokeWidth: 1.5, rx: 8, ry: 8 },
             },
             data,
-        } as any);
+        } as any) as dia.Element;
     }
 
-    private onSelectElement(el: joint.dia.Element): void {
+    private onSelectElement(el: dia.Element): void {
         const data = (el as any).get('data') ?? {};
         const label = el.attr('label/text') as string ?? '';
         this.selected.set({
@@ -274,21 +374,56 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
         });
     }
 
-    private onSelectLink(lk: joint.dia.Link): void {
+    private onSelectLane(lane: shapes.bpmn2.Swimlane): void {
+        const data = (lane as any).get('data') ?? {};
+        const label = (lane as any).attr('headerText/text') as string ?? data.label ?? '';
+        this.selectedLane.set({
+            cellId: (lane as any).id as string,
+            label,
+            areaId: data.assignedAreaId ?? '',
+        });
+    }
+
+    private onSelectLink(lk: dia.Link): void {
         const data = (lk as any).get('data') ?? {};
         const labelEntry = (lk as any).label(0);
         const label = labelEntry?.attrs?.text?.text as string ?? '';
-        this.selectedLink.set({
-            cellId: lk.id as string,
-            label,
-            condition: data.condition ?? '',
-        });
+        this.selectedLink.set({ cellId: lk.id as string, label, condition: data.condition ?? '' });
+    }
+
+    updateLaneName(name: string): void {
+        const sl = this.selectedLane();
+        if (!sl) return;
+        const lane = this.graph.getCell(sl.cellId) as dia.Element;
+        if (!lane) return;
+        (lane as any).attr('headerText/text', name);
+        const data = (lane as any).get('data') ?? {};
+        (lane as any).set('data', { ...data, label: name });
+        this.selectedLane.set({ ...sl, label: name });
+    }
+
+    updateLaneAreaId(areaId: string): void {
+        const sl = this.selectedLane();
+        if (!sl) return;
+        const lane = this.graph.getCell(sl.cellId);
+        if (!lane) return;
+        const data = (lane as any).get('data') ?? {};
+        (lane as any).set('data', { ...data, assignedAreaId: areaId });
+        this.selectedLane.set({ ...sl, areaId });
+    }
+
+    deleteLane(): void {
+        const sl = this.selectedLane();
+        if (!sl) return;
+        const lane = this.graph.getCell(sl.cellId);
+        if (lane) lane.remove();
+        this.selectedLane.set(null);
     }
 
     updateLinkLabel(newLabel: string): void {
         const sl = this.selectedLink();
         if (!sl) return;
-        const lk = this.graph.getCell(sl.cellId) as joint.dia.Link;
+        const lk = this.graph.getCell(sl.cellId) as dia.Link;
         if (!lk) return;
         lk.label(0, { attrs: { text: { text: newLabel } } });
         this.selectedLink.set({ ...sl, label: newLabel });
@@ -297,7 +432,7 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
     updateLinkCondition(newCond: string): void {
         const sl = this.selectedLink();
         if (!sl) return;
-        const lk = this.graph.getCell(sl.cellId) as joint.dia.Link;
+        const lk = this.graph.getCell(sl.cellId) as dia.Link;
         if (!lk) return;
         const data = (lk as any).get('data') ?? {};
         (lk as any).set('data', { ...data, condition: newCond });
@@ -345,7 +480,7 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
     }
 
     private updateNodeFormData(cellId: string, fields: FormField[]): void {
-        const el = this.graph.getCell(cellId) as joint.dia.Element;
+        const el = this.graph.getCell(cellId) as dia.Element;
         if (!el) return;
         const data = (el as any).get('data') ?? {};
         (el as any).set('data', { ...data, form: { fields } });
@@ -354,9 +489,12 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
     updateLabel(newLabel: string): void {
         const sel = this.selected();
         if (!sel) return;
-        const el = this.graph.getCell(sel.cellId) as joint.dia.Element;
+        const el = this.graph.getCell(sel.cellId) as dia.Element;
         if (!el) return;
         el.attr('label/text', newLabel);
+        const data = (el as any).get('data') ?? {};
+        (el as any).set('data', { ...data, label: newLabel });
+        this.selected.set({ ...sel, label: newLabel });
     }
 
     deleteSelected(): void {
@@ -369,9 +507,6 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
 
     toggleLinkMode(): void {
         this.linkMode.set(!this.linkMode());
-        if (this.paper) {
-            (this.paper as any).setInteractivity(!this.linkMode());
-        }
     }
 
     guardar(): void {
@@ -379,20 +514,42 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
         this.saving.set(true);
 
         const cells = this.graph.getCells();
-        const elements = cells.filter(c => c.isElement());
-        const links = cells.filter(c => c.isLink());
+
+        // Exclude Pool/Lane cells from workflow nodes
+        const elements = cells.filter(c =>
+            c.isElement() &&
+            !shapes.bpmn2.CompositePool.isPool(c) &&
+            !shapes.bpmn2.Swimlane.isSwimlane(c)
+        );
+
+        // Exclude links from/to Pool/Lane from transitions
+        const links = cells.filter(c => {
+            if (!c.isLink()) return false;
+            const srcId = (c as any).get('source')?.id;
+            const tgtId = (c as any).get('target')?.id;
+            if (!srcId || !tgtId) return false;
+            const srcCell = this.graph.getCell(srcId);
+            const tgtCell = this.graph.getCell(tgtId);
+            if (!srcCell || !tgtCell) return false;
+            if (shapes.bpmn2.CompositePool.isPool(srcCell) || shapes.bpmn2.Swimlane.isSwimlane(srcCell)) return false;
+            if (shapes.bpmn2.CompositePool.isPool(tgtCell) || shapes.bpmn2.Swimlane.isSwimlane(tgtCell)) return false;
+            return true;
+        });
 
         const nodes: PolicyNode[] = elements.map(el => {
             const data = (el as any).get('data') ?? {};
+            // Derive assignedAreaId from parent lane when not explicitly set on node
+            const parent = el.getParentCell();
+            const laneData = parent ? (parent as any).get('data') ?? {} : {};
             return {
                 id: el.id as string,
                 nodeType: data.nodeType ?? 'MANUAL_FORM',
                 label: el.attr('label/text') as string ?? '',
-                assignedAreaId: data.assignedAreaId,
+                assignedAreaId: data.assignedAreaId ?? laneData.assignedAreaId ?? null,
                 estimatedMinutes: data.estimatedMinutes,
                 form: data.form,
-                position: (el as joint.dia.Element).position(),
-                size: (el as joint.dia.Element).size(),
+                position: (el as dia.Element).position(),
+                size: (el as dia.Element).size(),
             };
         });
 
@@ -404,7 +561,7 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
                 id: lk.id as string,
                 from: src?.id ?? '',
                 to: tgt?.id ?? '',
-                label: lk.attr('labels/0/attrs/text/text') as string ?? '',
+                label: ((lk as dia.Link).label(0)?.attrs?.['text'] as any)?.text as string ?? '',
                 condition: data.condition ?? '',
             };
         });
@@ -448,6 +605,8 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
                     if (!this.graph || !patch.cells?.length) return;
                     this.isReceivingPatch = true;
                     this.graph.fromJSON({ cells: patch.cells });
+                    const poolCell = this.graph.getCells().find(c => shapes.bpmn2.CompositePool.isPool(c));
+                    if (poolCell) this.pool = poolCell as unknown as BPMNPool;
                     this.isReceivingPatch = false;
                 });
             },
@@ -497,7 +656,7 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
 
     agregarNodoDesdeIA(s: NodeSuggestion): void {
         const nd = this.nodeDefs.find(n => n.type === (s.type as NodeType)) ?? {
-            type: s.type as NodeType, label: s.label, icon: 'pi-box', color: '#94A3B8', shape: 'rect',
+            type: s.type as NodeType, label: s.label, icon: 'pi-box', color: '#94A3B8', bpmnType: 'activity' as const,
         };
         this.addNode({ ...nd, label: s.label });
     }

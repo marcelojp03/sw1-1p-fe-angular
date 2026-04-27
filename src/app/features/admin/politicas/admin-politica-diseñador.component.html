@@ -62,14 +62,19 @@
           <!-- Left: Palette (solo en modo edición) -->
           @if (!isReadOnly()) {
           <div class="w-52 flex-shrink-0 overflow-y-auto bg-surface-50 border-r border-surface-200 p-3">
+            <p class="text-xs font-semibold text-surface-400 uppercase mb-2">Áreas / Swimlanes</p>
+            <button class="palette-btn lane-btn w-full mb-3" (click)="addLane()">
+              <i class="pi pi-table text-surface-500"></i>
+              <span>+ Agregar área</span>
+            </button>
+            <p-divider styleClass="my-2" />
             <p class="text-xs font-semibold text-surface-400 uppercase mb-3">Nodos</p>
             <div class="flex flex-col gap-2">
               @for (nd of nodeDefs; track nd.type) {
                 <button class="palette-btn" (click)="addNode(nd)">
-                  @switch (nd.shape) {
-                    @case ('circle') { <span class="dot" [style.background]="nd.color"></span> }
-                    @case ('diamond') { <span class="diamond" [style.background]="nd.color"></span> }
-                    @case ('bar') { <span class="bar" [style.background]="nd.color"></span> }
+                  @switch (nd.bpmnType) {
+                    @case ('event') { <span class="dot" [style.background]="nd.color"></span> }
+                    @case ('gateway') { <span class="diamond" [style.background]="nd.color"></span> }
                     @default { <span class="sq" [style.background]="nd.color"></span> }
                   }
                   <span>{{ nd.label }}</span>
@@ -161,6 +166,22 @@
 
                 <p-button label="Eliminar nodo" icon="pi pi-trash" severity="danger"
                   size="small" [outlined]="true" class="w-full" (onClick)="deleteSelected()" />
+              </div>
+            } @else if (selectedLane()) {
+              <p class="text-xs font-semibold text-surface-400 uppercase mb-3">Propiedades del Área</p>
+              <div class="flex flex-col gap-3">
+                <div>
+                  <label class="text-xs font-medium text-surface-500 block mb-1">Nombre del área</label>
+                  <input pInputText [ngModel]="selectedLane()!.label" class="w-full text-sm"
+                    (ngModelChange)="updateLaneName($event)" />
+                </div>
+                <div>
+                  <label class="text-xs font-medium text-surface-500 block mb-1">ID de área (asignación)</label>
+                  <input pInputText [ngModel]="selectedLane()!.areaId" class="w-full text-sm"
+                    (ngModelChange)="updateLaneAreaId($event)" placeholder="ej: 507f1f77bcf86cd799439011" />
+                </div>
+                <p-button label="Eliminar área" icon="pi pi-trash" severity="danger"
+                  size="small" [outlined]="true" styleClass="w-full" (onClick)="deleteLane()" />
               </div>
             } @else if (selectedLink()) {
               <p class="text-xs font-semibold text-surface-400 uppercase mb-3">Propiedades de Transición</p>
