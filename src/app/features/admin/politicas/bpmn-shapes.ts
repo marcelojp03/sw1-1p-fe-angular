@@ -28,6 +28,9 @@ export class BPMNPool extends shapes.bpmn2.HeaderedHorizontalPool {
             },
         }, super.defaults);
     }
+    afterPhasesEmbedded() {
+        (this as any).setStackingOrder?.();
+    }
 }
 
 export const BPMNPoolView = shapes.bpmn2.HeaderedHorizontalPoolView;
@@ -133,6 +136,9 @@ export class BPMNVerticalPool extends shapes.bpmn2.HeaderedVerticalPool {
                 headerText: { fill: '#1e293b', fontFamily: 'sans-serif', fontSize: 14, fontWeight: 'bold' },
             },
         }, super.defaults);
+    }
+    afterPhasesEmbedded() {
+        (this as any).setStackingOrder?.();
     }
 }
 

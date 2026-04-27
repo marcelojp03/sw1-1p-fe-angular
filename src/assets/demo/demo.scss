@@ -1,2 +1,48 @@
 @use './code.scss';
 @use './flags/flags';
+
+// ── JointJS+ BPMN diagram highlighting classes ─────────────────────
+// Applied by JointJS highlighting system; must be global (not component-scoped).
+
+// Embedding hint: shown on a swimlane/pool when an element hovers over it
+.hgl-container [joint-selector="body"] {
+    fill: #EAF1FC;
+    transition: fill 0.4s;
+}
+.hgl-container [joint-selector="header"] {
+    fill: #B5CDF8;
+}
+
+// Connection hint: shown on target element during link drawing
+.hgl-target {
+    stroke: #0075f2;
+    stroke-width: 2;
+    fill: #EAF1FC;
+}
+
+// Swimlane being moved (source highlight)
+.hgl-swimlane-source [joint-selector="body"] {
+    fill: #EAF1FC;
+}
+
+// Phase target + phase element highlights during phase drag
+.hgl-phase [joint-selector="header"] {
+    fill: #B5CDF8;
+}
+.hgl-phase-element [joint-selector="body"],
+.hgl-phase-element [joint-selector="border"] {
+    stroke: #0075f2;
+}
+
+// Invalid drop indication
+.hgl-invalid-drop rect {
+    stroke: #ed2637;
+}
+.hgl-invalid-drop text {
+    fill: #ed2637;
+}
+
+// Swimlane/Phase header transitions
+[joint-selector="header"] {
+    transition: fill 0.4s;
+}

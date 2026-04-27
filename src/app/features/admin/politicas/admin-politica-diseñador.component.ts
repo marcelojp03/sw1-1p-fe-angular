@@ -27,6 +27,7 @@ import {
     BPMNEvent, BPMNActivity, BPMNGateway,
     APP_SHAPES, DEFAULT_POOL_WIDTH, MIN_LANE_SIZE, LANE_HEADER_SIZE,
 } from './bpmn-shapes';
+import { BPMNController } from './bpmn-controller';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { PoliticaService } from './politicas.service';
@@ -132,6 +133,7 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
     private stencil: ui.Stencil;
     private snaplines: ui.Snaplines;
     private commandManager: dia.CommandManager;
+    private bpmnController?: BPMNController;
     private pool: BPMNPool | null = null;
     private policyId!: string;
     private stompClient?: Client;
@@ -163,6 +165,7 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
     ngAfterViewInit(): void { /* canvas initialized after data loads */ }
 
     ngOnDestroy(): void {
+        this.bpmnController?.stopListening();
         this.resizeObserver?.disconnect();
         this.snaplines?.stopListening();
         this.scroller?.remove();
@@ -211,7 +214,14 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
             linkPinning: false,
             defaultRouter: {
                 name: 'manhattan',
-                args: { excludeTypes: ['sw1.Pool', 'sw1.Lane'], padding: 10 },
+                args: {
+                    excludeTypes: [
+                        'sw1.Pool', 'sw1.VerticalPool',
+                        'sw1.Lane', 'sw1.VerticalLane',
+                        'sw1.VerticalPhase', 'sw1.HorizontalPhase',
+                    ],
+                    padding: 10,
+                },
             },
             defaultLink: () => new shapes.bpmn2.Flow() as unknown as dia.Link,
             validateConnection: (cvS: any, _mS: any, cvT: any) => {
@@ -223,29 +233,31 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
             },
             validateEmbedding: (childView: any, parentView: any) => {
                 const child = childView.model, parent = parentView.model;
+                // Pools, Swimlanes and Phases are managed programmatically via addSwimlane/addPhase
                 if (shapes.bpmn2.CompositePool.isPool(child)) return false;
-                // Allow lanes AND phases to preview snap hint when dragged over a pool
-                const isPhase = (shapes.bpmn2 as any).Phase?.isPhase?.(child);
-                if (shapes.bpmn2.Swimlane.isSwimlane(child) || isPhase) {
-                    return shapes.bpmn2.CompositePool.isPool(parent);
-                }
+                if (shapes.bpmn2.Swimlane.isSwimlane(child)) return false;
+                if (shapes.bpmn2.Phase.isPhase(child)) return false;
+                // Regular elements can only embed into Swimlanes
                 return shapes.bpmn2.Swimlane.isSwimlane(parent);
+            },
+            validateUnembedding: (childView: any) => {
+                const child = childView.model;
+                return (
+                    shapes.bpmn2.CompositePool.isPool(child) ||
+                    shapes.bpmn2.Swimlane.isSwimlane(child) ||
+                    shapes.bpmn2.Phase.isPhase(child)
+                );
             },
             interactive: (cellView: any) => {
                 if (this.isReadOnly()) return false;
                 const cell = cellView.model;
                 if (shapes.bpmn2.Swimlane.isSwimlane(cell)) return { stopDelegation: false };
+                if (shapes.bpmn2.Phase.isPhase(cell)) return { stopDelegation: false };
                 return true;
             },
             highlighting: {
-                embedding: {
-                    name: 'stroke',
-                    options: { padding: 6, rx: 4, ry: 4, attrs: { 'stroke-width': 3, stroke: '#4f46e5', 'stroke-dasharray': '6,3', fill: 'none' } },
-                },
-                connecting: {
-                    name: 'stroke',
-                    options: { padding: 5, attrs: { 'stroke-width': 3, stroke: '#059669', fill: 'none' } },
-                },
+                embedding: { name: 'addClass', options: { className: 'hgl-container' } },
+                connecting: { name: 'addClass', options: { className: 'hgl-target' } },
             },
         } as any);
 
@@ -356,14 +368,6 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
             this.selected.set(null); this.selectedLane.set(null); this.selectedLink.set(null);
         });
 
-        // After any element move, bring non-pool/non-lane elements to front so
-        // they never disappear behind the pool background rectangle.
-        this.paper.on('element:pointerup', (view: any) => {
-            const el = view.model as dia.Element;
-            if (!shapes.bpmn2.CompositePool.isPool(el) && !shapes.bpmn2.Swimlane.isSwimlane(el)) {
-                el.toFront();
-            }
-        });
     }
 
     private initStencil(): void {
@@ -371,7 +375,7 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
             paper: this.paper,
             snaplines: this.snaplines,
             usePaperGrid: true,
-            width: 210,
+            width: 200,
             groups: {
                 pools:    { label: 'Estructura', index: 1 },
                 events:   { label: 'Eventos', index: 2 },
@@ -387,19 +391,19 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
                 columns: 2,
                 rowHeight: 'compact',
                 rowGap: 10,
-                columnWidth: 88,
+                columnWidth: 84,
                 marginY: 10,
                 resizeToFit: false,
-                dx: 0, dy: 0,
+                dx: 4, dy: 0,
             },
             groupLayout: {
                 pools: {
                     columns: 1,
                     rowHeight: 'compact',
-                    rowGap: 10,
-                    columnWidth: 178,
+                    rowGap: 8,
+                    columnWidth: 170,
                     marginY: 8,
-                    dx: 0, dy: 0,
+                    dx: 8, dy: 0,
                     resizeToFit: false,
                 } as any,
             },
@@ -407,26 +411,35 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
         this.stencilContainerEl!.nativeElement.appendChild(this.stencil.el);
         this.stencil.render();
 
+        // ── BPMNController: snap hints + drop handling ─────────────
+        this.bpmnController = new BPMNController({
+            paper: this.paper,
+            stencil: this.stencil,
+            defaultPoolWidth: DEFAULT_POOL_WIDTH,
+            onPoolChange: (pool) => { this.pool = pool as unknown as BPMNPool; },
+        });
+        this.bpmnController.startListening();
+
         this.stencil.load({
             pools: [
                 // Pool horizontal: header top (40px) + content area
                 new BPMNPool({
-                    size: { width: 178, height: 90 },
-                    attrs: { headerText: { text: 'Pool Horizontal', fontFamily: 'sans-serif', fontSize: 11 } },
+                    size: { width: 170, height: 80 },
+                    attrs: { headerText: { text: 'Pool Horizontal', fontFamily: 'sans-serif', fontSize: 10 } },
                 } as any),
                 // Pool vertical: header left (40px) + content area
                 new BPMNVerticalPool({
-                    size: { width: 178, height: 90 },
-                    attrs: { headerText: { text: 'Pool Vertical', fontFamily: 'sans-serif', fontSize: 11 } },
+                    size: { width: 170, height: 80 },
+                    attrs: { headerText: { text: 'Pool Vertical', fontFamily: 'sans-serif', fontSize: 10 } },
                 } as any),
                 // Lane horizontal (swimlane para pool horizontal)
                 new BPMNLane({
-                    size: { width: 178, height: 60 },
+                    size: { width: 170, height: 50 },
                     attrs: { headerText: { text: '+ Nueva área', fontFamily: 'sans-serif', fontSize: 10 } },
                 } as any),
                 // Phase vertical (etapa/milestone en pool horizontal)
                 new BPMNVerticalPhase({
-                    size: { width: 80, height: 60 },
+                    size: { width: 170, height: 50 },
                     attrs: { headerText: { text: '+ Fase', fontFamily: 'sans-serif', fontSize: 10 } },
                 } as any),
             ],
@@ -468,72 +481,6 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
             ],
         });
 
-        // Handle stencil element drops
-        (this.stencil as any).on('element:drop', (_appView: any, elementView: any, _evt: any, _x: number, _y: number) => {
-            const el = elementView?.model as dia.Element | undefined;
-            if (!el) return;
-            if (shapes.bpmn2.CompositePool.isPool(el)) {
-                // New pool dropped: set width and add a default swimlane
-                el.prop(['size', 'width'], DEFAULT_POOL_WIDTH);
-                const isVertical = el.get('type') === 'sw1.VerticalPool';
-                const lane = isVertical
-                    ? new BPMNVerticalLane({
-                        attrs: { headerText: { text: 'Área 1', fontFamily: 'sans-serif' } },
-                        data: { assignedAreaId: '', label: 'Área 1' },
-                      } as any)
-                    : new BPMNLane({
-                        attrs: { headerText: { text: 'Área 1', fontFamily: 'sans-serif' } },
-                        data: { assignedAreaId: '', label: 'Área 1' },
-                      } as any);
-                (el as any).addSwimlane(lane);
-                this.pool = el as unknown as BPMNPool;
-            } else if (
-                shapes.bpmn2.Swimlane.isSwimlane(el) ||
-                (shapes.bpmn2 as any).Phase?.isPhase?.(el)
-            ) {
-                // Lane/phase dropped: use actual parent pool (from embedding snap) or fallback to this.pool
-                const embeddedIn = el.getParentCell?.();
-                const targetPool = (embeddedIn && shapes.bpmn2.CompositePool.isPool(embeddedIn))
-                    ? embeddedIn as dia.Element
-                    : (this.pool as unknown as dia.Element);
-                if (targetPool) {
-                    el.remove(); // Remove the stencil ghost
-                    const isVerticalPool = (targetPool as any).get('type') === 'sw1.VerticalPool';
-                    const isPhase = (shapes.bpmn2 as any).Phase?.isPhase?.(el);
-                    if (isPhase) {
-                        // VerticalPhase → horizontal pool; HorizontalPhase → vertical pool
-                        const phase = isVerticalPool
-                            ? new BPMNHorizontalPhase({
-                                attrs: { headerText: { text: 'Etapa', fontFamily: 'sans-serif' } },
-                              } as any)
-                            : new BPMNVerticalPhase({
-                                attrs: { headerText: { text: 'Etapa', fontFamily: 'sans-serif' } },
-                              } as any);
-                        (targetPool as any).addPhase(phase);
-                    } else {
-                        const lane = isVerticalPool
-                            ? new BPMNVerticalLane({
-                                attrs: { headerText: { text: 'Nueva área', fontFamily: 'sans-serif' } },
-                                data: { assignedAreaId: '', label: 'Nueva área' },
-                              } as any)
-                            : new BPMNLane({
-                                attrs: { headerText: { text: 'Nueva área', fontFamily: 'sans-serif' } },
-                                data: { assignedAreaId: '', label: 'Nueva área' },
-                              } as any);
-                        (targetPool as any).addSwimlane(lane);
-                    }
-                    this.pool = targetPool as unknown as BPMNPool;
-                }
-            } else {
-                // Regular element: expand parent lane to contain it
-                const parent = el?.getParentCell?.();
-                if (parent && shapes.bpmn2.Swimlane.isSwimlane(parent) && this.pool) {
-                    (this.pool as any).adjustToContainElements(parent as shapes.bpmn2.Swimlane);
-                }
-                // Ensure task nodes are always rendered above the pool background
-                el.toFront();
-            }
-        });
     }
 
     private createInitialPool(name: string): void {
