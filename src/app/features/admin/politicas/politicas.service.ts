@@ -55,4 +55,12 @@ export class PoliticaService {
             .set('policyKey', policyKey);
         return this.http.post<PolicyResponse>(`${this.base}/new-version`, {}, { params });
     }
+
+    updateMeta(id: string, body: { name: string; description?: string }): Observable<PolicyResponse> {
+        return this.http.patch<PolicyResponse>(`${this.base}/${id}`, body);
+    }
+
+    delete(id: string): Observable<void> {
+        return this.http.delete<void>(`${this.base}/${id}`);
+    }
 }

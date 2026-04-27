@@ -48,6 +48,15 @@
               pTooltip="Sugerir nodos con Inteligencia Artificial"
               (onClick)="abrirDialogoAI()"
             />
+            <p-button
+              label="Generar diagrama"
+              icon="pi pi-wand-magic-sparkles"
+              size="small"
+              severity="help"
+              [outlined]="true"
+              pTooltip="Generar diagrama completo con Inteligencia Artificial"
+              (onClick)="openAiGenerateDialog()"
+            />
             <!-- Guardar -->
             <p-button label="Guardar" icon="pi pi-save" size="small" [loading]="saving()"
               (onClick)="guardar()" />
@@ -103,9 +112,21 @@
 
                 @if (!['START','END','PARALLEL_SPLIT','PARALLEL_JOIN'].includes(selected()!.nodeType)) {
                   <div>
-                    <label class="text-xs font-medium text-surface-500 block mb-1">Área asignada (ID)</label>
-                    <p-inputnumber [(ngModel)]="selected()!.assignedAreaId"
-                      [min]="1" class="w-full" inputStyleClass="w-full text-sm" />
+                    <label class="text-xs font-medium text-surface-500 block mb-1">Área asignada</label>
+                    @if (areasOptions().length > 0) {
+                      <p-select
+                        [options]="areasOptions()"
+                        optionLabel="label"
+                        optionValue="value"
+                        [ngModel]="selected()!.assignedAreaId"
+                        (ngModelChange)="updateAssignedAreaId($event)"
+                        placeholder="Seleccionar área..."
+                        styleClass="w-full text-sm"
+                        [showClear]="true"
+                      />
+                    } @else {
+                      <p class="text-xs text-orange-500 mt-1">No hay áreas registradas. Configura las áreas de la organización primero.</p>
+                    }
                   </div>
                   <div>
                     <label class="text-xs font-medium text-surface-500 block mb-1">Tiempo estimado (min)</label>
@@ -163,8 +184,20 @@
                 </div>
                 <div>
                   <label class="text-xs font-medium text-surface-500 block mb-1">ID de área (asignación)</label>
-                  <input pInputText [ngModel]="selectedLane()!.areaId" class="w-full text-sm"
-                    (ngModelChange)="updateLaneAreaId($event)" placeholder="ej: 507f1f77bcf86cd799439011" />
+                  @if (areasOptions().length > 0) {
+                    <p-select
+                      [options]="areasOptions()"
+                      optionLabel="label"
+                      optionValue="value"
+                      [ngModel]="selectedLane()!.areaId"
+                      (ngModelChange)="updateLaneAreaId($event)"
+                      placeholder="Seleccionar área..."
+                      styleClass="w-full text-sm"
+                      [showClear]="true"
+                    />
+                  } @else {
+                    <p class="text-xs text-orange-500 mt-1">No hay áreas registradas. Configura las áreas de la organización primero.</p>
+                  }
                 </div>
                 <p-button label="Eliminar área" icon="pi pi-trash" severity="danger"
                   size="small" [outlined]="true" styleClass="w-full" (onClick)="deleteLane()" />
@@ -242,7 +275,7 @@
         }
         @if (!aiLoading() && aiSuggestions().length > 0) {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-            @for (s of aiSuggestions(); track s.label) {
+            @for (s of aiSuggestions(); track $index) {
               <div class="border border-surface-200 rounded p-3 bg-surface-50">
                 <div class="flex items-center gap-2 mb-1">
                   <p-tag [value]="s.type" severity="info" />
@@ -297,6 +330,66 @@
         @if (!aiFieldsLoading() && aiFieldSuggestions().length === 0) {
           <p class="text-surface-400 text-sm text-center py-4">La IA no devolvió sugerencias de campos.</p>
         }
+      </p-dialog>
+
+      <!-- Generar diagrama con IA -->
+      <p-dialog
+        header="Generar diagrama con Inteligencia Artificial"
+        [modal]="true"
+        [visible]="showAiGenerateDialog()"
+        (visibleChange)="showAiGenerateDialog.set($event)"
+        [style]="{ width: '480px' }"
+        [draggable]="false"
+      >
+        <div class="flex flex-col gap-4">
+          <p class="text-surface-500 text-sm">
+            Describe el proceso de negocio y la IA generará un diagrama BPMN completo con swimlanes, actividades, gateways y flujos.
+          </p>
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center justify-between">
+              <label class="text-sm font-medium">Descripción del proceso</label>
+              <p-button
+                [icon]="isListening() ? 'pi pi-stop-circle' : 'pi pi-microphone'"
+                [severity]="isListening() ? 'danger' : 'secondary'"
+                [text]="true"
+                size="small"
+                [pTooltip]="isListening() ? 'Detener grabación' : 'Dictar por voz'"
+                (onClick)="toggleVoiceInput()"
+              />
+            </div>
+            @if (isListening()) {
+              <div class="flex items-center gap-2 text-red-500 text-xs animate-pulse">
+                <i class="pi pi-circle-fill text-[8px]"></i>
+                Escuchando... hablá para describir el proceso
+              </div>
+            }
+            <textarea
+              pTextarea
+              [rows]="6"
+              [autoResize]="true"
+              class="w-full"
+              placeholder="Ej: Proceso de aprobación de crédito. El cliente solicita el crédito, un analista lo revisa, si supera 10000$ pasa a aprobación del gerente, de lo contrario se aprueba directamente. Al final se notifica al cliente."
+              [(ngModel)]="aiDiagramDescription"
+            ></textarea>
+          </div>
+          <p-message severity="warn" text="El diagrama actual será reemplazado." styleClass="text-xs" />
+        </div>
+        <ng-template pTemplate="footer">
+          <p-button
+            label="Cancelar"
+            severity="secondary"
+            [text]="true"
+            (onClick)="closeAiGenerateDialog()"
+          />
+          <p-button
+            label="Generar"
+            icon="pi pi-wand-magic-sparkles"
+            severity="help"
+            [loading]="aiGenerating()"
+            [disabled]="!aiDiagramDescription.trim()"
+            (onClick)="generateDiagram()"
+          />
+        </ng-template>
       </p-dialog>
     </div>
     

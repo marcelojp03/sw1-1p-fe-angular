@@ -74,3 +74,16 @@ export interface AnalyzeBottlenecksResponse {
     bottlenecks: BottleneckItem[];
     generalRecommendations: string[];
 }
+
+// AI Diagram Generation
+export interface GenerateDiagramRequest {
+    organizationName: string;
+    policyName: string;
+    policyDescription: string;
+    areas: string[];
+    language: string;
+}
+
+export interface GenerateDiagramResponse {
+    diagram: Record<string, unknown>;  // graph.fromJSON()-compatible: { cells: [...] }
+}

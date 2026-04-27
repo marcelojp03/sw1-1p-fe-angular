@@ -9,6 +9,8 @@ import {
     SuggestFormFieldsResponse,
     AnalyzeBottlenecksRequest,
     AnalyzeBottlenecksResponse,
+    GenerateDiagramRequest,
+    GenerateDiagramResponse,
 } from './ai-politica.model';
 
 @Injectable({ providedIn: 'root' })
@@ -16,18 +18,27 @@ export class AiPoliticaService {
     private http = inject(HttpClient);
     private base = `${environment.api.baseUrl}/ai`;
 
-    suggestWorkflow(req: SuggestWorkflowRequest, organizationId: string): Observable<SuggestWorkflowResponse> {
-        const params = new HttpParams().set('organizationId', organizationId);
+    suggestWorkflow(req: SuggestWorkflowRequest, organizationId: string, policyId?: string): Observable<SuggestWorkflowResponse> {
+        let params = new HttpParams().set('organizationId', organizationId);
+        if (policyId) params = params.set('policyId', policyId);
         return this.http.post<SuggestWorkflowResponse>(`${this.base}/suggest-workflow`, req, { params });
     }
 
-    suggestFormFields(req: SuggestFormFieldsRequest, organizationId: string): Observable<SuggestFormFieldsResponse> {
-        const params = new HttpParams().set('organizationId', organizationId);
+    suggestFormFields(req: SuggestFormFieldsRequest, organizationId: string, policyId?: string): Observable<SuggestFormFieldsResponse> {
+        let params = new HttpParams().set('organizationId', organizationId);
+        if (policyId) params = params.set('policyId', policyId);
         return this.http.post<SuggestFormFieldsResponse>(`${this.base}/suggest-form-fields`, req, { params });
     }
 
-    analyzeBottlenecks(req: AnalyzeBottlenecksRequest, organizationId: string): Observable<AnalyzeBottlenecksResponse> {
-        const params = new HttpParams().set('organizationId', organizationId);
+    analyzeBottlenecks(req: AnalyzeBottlenecksRequest, organizationId: string, policyId?: string): Observable<AnalyzeBottlenecksResponse> {
+        let params = new HttpParams().set('organizationId', organizationId);
+        if (policyId) params = params.set('policyId', policyId);
         return this.http.post<AnalyzeBottlenecksResponse>(`${this.base}/analyze-bottlenecks`, req, { params });
+    }
+
+    generateDiagram(req: GenerateDiagramRequest, organizationId: string, policyId?: string): Observable<GenerateDiagramResponse> {
+        let params = new HttpParams().set('organizationId', organizationId);
+        if (policyId) params = params.set('policyId', policyId);
+        return this.http.post<GenerateDiagramResponse>(`${this.base}/generate-diagram`, req, { params });
     }
 }

@@ -198,7 +198,8 @@ export class BPMNVerticalPhase extends shapes.bpmn2.VerticalPhase {
             attrs: {
                 header: { stroke: '#94a3b8', fill: '#dbeafe', strokeDasharray: '5,3' },
                 headerText: { fill: '#1e3a8a', fontFamily: 'sans-serif', fontSize: 12 },
-                body:   { stroke: '#94a3b8', fill: '#f0f9ff' },
+                // fill: 'none' para que las lanes debajo sean visibles
+                body:   { stroke: '#94a3b8', strokeDasharray: '5,3', fill: 'none' },
             },
         }, super.defaults);
     }
@@ -219,7 +220,8 @@ export class BPMNHorizontalPhase extends shapes.bpmn2.HorizontalPhase {
             attrs: {
                 header: { stroke: '#94a3b8', fill: '#dbeafe', strokeDasharray: '5,3' },
                 headerText: { fill: '#1e3a8a', fontFamily: 'sans-serif', fontSize: 12 },
-                body:   { stroke: '#94a3b8', fill: '#f0f9ff' },
+                // fill: 'none' para que las lanes debajo sean visibles
+                body:   { stroke: '#94a3b8', strokeDasharray: '5,3', fill: 'none' },
             },
         }, super.defaults);
     }

@@ -9,6 +9,8 @@ import { ToastModule } from 'primeng/toast';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
+import { TextareaModule } from 'primeng/textarea';
+import { MessageModule } from 'primeng/message';
 import { SelectModule } from 'primeng/select';
 import { CardModule } from 'primeng/card';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
@@ -17,7 +19,7 @@ import { DividerModule } from 'primeng/divider';
 import { TooltipModule } from 'primeng/tooltip';
 import { DialogModule } from 'primeng/dialog';
 import { CheckboxModule } from 'primeng/checkbox';
-import { dia, ui, shapes, elementTools, linkTools, highlighters } from '@joint/plus';
+import { dia, ui, shapes, elementTools, linkTools, highlighters, format } from '@joint/plus';
 import {
     BPMNPool, BPMNPoolView, BPMNLane, BPMNLaneView,
     BPMNVerticalPool, BPMNVerticalPoolView,
@@ -32,13 +34,15 @@ import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { PoliticaService } from './politicas.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { OrganizationService } from '../organizacion/organizacion.service';
+import { AreaResponse } from '../organizacion/organizacion.model';
 import {
     PolicyResponse, PolicyNode, PolicyTransition, NodeType,
 } from './politica.model';
 import { FormField } from '../../officer/tareas/tarea.model';
 import { AiPoliticaService } from './ai-politica.service';
 import {
-    NodeSuggestion, TransitionSuggestion, FieldSuggestion,
+    NodeSuggestion, TransitionSuggestion, FieldSuggestion, GenerateDiagramRequest,
 } from './ai-politica.model';
 import { DiagramPatchMessage } from '../../../shared/models/chat.model';
 import { environment } from '../../../../environments/environment';
@@ -48,7 +52,7 @@ interface SelectedNodeData {
     cellId: string;
     nodeType: NodeType;
     label: string;
-    assignedAreaId: number | null;
+    assignedAreaId: string | null;
     estimatedMinutes: number | null;
     condition: string;
     formFields: FormField[];
@@ -64,7 +68,7 @@ interface SelectedLaneData {
     standalone: true,
     imports: [
         CommonModule, FormsModule, ToastModule, ButtonModule, InputTextModule,
-        InputNumberModule, SelectModule, CardModule, ProgressSpinnerModule,
+        InputNumberModule, TextareaModule, MessageModule, SelectModule, CardModule, ProgressSpinnerModule,
         TagModule, DividerModule, TooltipModule, DialogModule, CheckboxModule,
     ],
     providers: [MessageService],
@@ -88,6 +92,7 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
     private message = inject(MessageService);
     private cdr = inject(ChangeDetectorRef);
     private aiService = inject(AiPoliticaService);
+    private orgService = inject(OrganizationService);
     router = inject(Router);
 
     loading = signal(true);
@@ -96,6 +101,8 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
     linkMode = signal(false);
     politica = signal<PolicyResponse | null>(null);
     selected = signal<SelectedNodeData | null>(null);
+    areas = signal<AreaResponse[]>([]);
+    areasOptions = computed(() => this.areas().map(a => ({ label: a.name, value: a.id })));
     selectedLane = signal<SelectedLaneData | null>(null);
     selectedLink = signal<{ cellId: string; label: string; condition: string } | null>(null);
     formDialogVisible = false;
@@ -110,6 +117,13 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
     aiTransitions = signal<TransitionSuggestion[]>([]);
     aiFieldSuggestions = signal<FieldSuggestion[]>([]);
     aiCalled = signal(false);
+
+    // AI diagram generation signals
+    aiGenerating = signal(false);
+    showAiGenerateDialog = signal(false);
+    aiDiagramDescription = '';
+    isListening = signal(false);
+    private recognition: any = null;
 
     /** Política publicada o archivada → solo lectura */
     readonly isReadOnly = computed(() => {
@@ -159,6 +173,13 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
             next: (p) => { this.politica.set(p); this.loading.set(false); this.cdr.detectChanges(); setTimeout(() => this.initCanvas(p), 0); },
             error: () => { this.loading.set(false); this.message.add({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar la política' }); },
         });
+        const orgId = this.orgId;
+        if (orgId) {
+            this.orgService.get(orgId).subscribe({
+                next: (org) => this.areas.set(org.areas ?? []),
+                error: () => {},
+            });
+        }
         this.conectarDiagramaWS();
     }
 
@@ -170,6 +191,7 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
         this.scroller?.remove();
         this.stencil?.remove();
         this.stompClient?.deactivate();
+        this.recognition?.stop();
     }
 
     private initCanvas(p: PolicyResponse): void {
@@ -244,10 +266,13 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
             },
             validateUnembedding: (childView: any) => {
                 const child = childView.model;
-                // Phases MUST NOT be un-embedded via drag — they are positioned
-                // programmatically via addPhase(). Allowing un-embed causes them
-                // to float as orphan elements on the canvas (the blue dashed box).
-                if (isPhaseEl(child)) return false;
+                // Phases, Swimlanes and Pools CAN be unembedded during drag.
+                // validateEmbedding:false for phases/swimlanes/pools ensures JointJS never
+                // re-embeds them natively; our element:pointerup and element:drop handlers
+                // do the re-embedding explicitly via addPhase/addSwimlane.
+                // NOTE: returning false here causes stencil clones to be silently removed
+                // before element:drop fires, breaking stencil drop for phases.
+                if (isPhaseEl(child)) return true;
                 return (isPoolEl(child) || isSwimlaneEl(child));
             },
             interactive: (cellView: any) => {
@@ -391,14 +416,30 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
             this.scroller.startPanning(evt);
         });
 
-        // Al empezar a arrastrar una lane o phase: guardar el pool de origen
-        // NO llamar preventDefaultInteraction — congela todo el canvas después del drop
+        // Zoom con scroll del mouse (sobre fondo)
+        this.paper.on('blank:mousewheel', (evt: any, x: number, y: number, delta: number) => {
+            evt.preventDefault();
+            this.scroller.zoom(delta * 0.05, { min: 0.2, max: 2, ox: x, oy: y } as any);
+        });
+        // Zoom con scroll del mouse (sobre celdas)
+        (this.paper as any).on('cell:mousewheel', (_view: any, evt: any, x: number, y: number, delta: number) => {
+            evt.preventDefault();
+            this.scroller.zoom(delta * 0.05, { min: 0.2, max: 2, ox: x, oy: y } as any);
+        });
+
+        // Al empezar a arrastrar una lane o phase: guardar el pool de origen.
+        // IMPORTANTE: element:pointerdown del paper NO dispara para clones del stencil
+        // (el click original es sobre el stencil, no el paper). Solo dispara para
+        // elementos ya en el canvas. Usamos este hecho para marcar drags de canvas.
         (this.paper as any).on('element:pointerdown', (view: any, evt: any) => {
             const el = view.model as dia.Element;
             if (isSwimlaneEl(el) || isPhaseEl(el)) {
                 evt.data = evt.data || {};
                 evt.data.targetPoolView = null;
                 evt.data.originalPool = el.getParentCell() ?? null;
+                // Marcar como drag de canvas. El paper nunca dispara pointerdown
+                // para clones del stencil → los clones tienen evt.data sin este flag.
+                evt.data.isCanvasDrag = true;
             }
         });
 
@@ -406,12 +447,11 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
         (this.paper as any).on('element:pointermove', (view: any, evt: any, x: number, y: number) => {
             const el = view.model as dia.Element;
             if (!isSwimlaneEl(el) && !isPhaseEl(el)) return;
-            // Con usePaperGrid:true, el stencil y el paper tienen cadenas de eventos
-            // SEPARADAS con sus propios evt.data. El flag isStencilDrag del stencil
-            // nunca llega al evt.data del paper. En cambio, detectamos clones del
-            // stencil verificando que no tienen parent todavía (getParentCell() === null).
-            // Los elementos del canvas SIEMPRE están embebidos → tienen parent.
-            if (!el.getParentCell()) return; // stencil clone → el stencil lo maneja
+            // Solo procesar drags que empezaron en el canvas (isCanvasDrag seteado
+            // en element:pointerdown). Los clones del stencil nunca tienen este flag
+            // porque pointerdown no dispara para ellos en el paper → el stencil
+            // los maneja vía element:drag + element:drop.
+            if (!evt.data?.isCanvasDrag) return;
             this.clearLaneDropHighlight();
             const views = this.paper.findViewsFromPoint({ x, y });
             const poolView = views.find(
@@ -432,12 +472,18 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
             this.clearLaneDropHighlight();
             const el = view.model as dia.Element;
 
-            // Clones del stencil: no tienen parent cell todavía (aún no embebidos).
-            // element:drop del stencil los maneja. Si también los procesamos aquí,
-            // addPhase/addSwimlane se llama DOS VECES (una aquí y otra en element:drop),
-            // la segunda llamada corrompe la estructura → la fase/lane desaparece.
-            // Los elementos canvas SIEMPRE tienen parent (validateUnembedding=false).
-            if ((isSwimlaneEl(el) || isPhaseEl(el)) && !el.getParentCell()) return;
+            // Clones del stencil: element:pointerdown del paper NO dispara para ellos,
+            // por lo tanto evt.data.isCanvasDrag no está seteado.
+            // - Lanes: element:drop SÍ dispara para ellas → manejarlas allí.
+            // - Phases: element:drop NO dispara (JointJS stencil elimina silenciosamente
+            //   los clones con validateUnembedding:false antes de disparar element:drop)
+            //   → manejar el drop de phases aquí.
+            // Nota: NO usar getParentCell()==null porque las lanes pueden des-embeberse
+            // durante el drag (validateUnembedding=true para swimlanes) quedando sin padre.
+            if (isSwimlaneEl(el) && !evt.data?.isCanvasDrag) return;
+            // Phases from stencil are handled in element:drop (stencil fires element:drop for phases).
+            // Only skip stencil lanes above; phases from stencil fall through to the canvas-phase block only
+            // if isCanvasDrag is set (which it never is for stencil clones — pointerdown doesn't fire for them).
 
             if (isSwimlaneEl(el)) {
                 // Usar el pool bajo el cursor; si no hay, volver al pool de origen
@@ -597,9 +643,6 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
         (this.stencil as any).on('element:dragstart', (_app: any, _cloneView: any, evt: any) => {
             evt.data = evt.data || {};
             evt.data.poolView = null;
-            // NOTA: isStencilDrag ya NO se usa para discriminar en paper events.
-            // Con usePaperGrid:true, stencil y paper tienen evt.data SEPARADOS.
-            // La discriminación se hace por getParentCell() en los handlers del paper.
         });
 
         (this.stencil as any).on('element:drag', (_app: any, cloneView: any, evt: any) => {
@@ -619,11 +662,6 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
             }
         });
 
-        // element:dragend: solo limpiar highlights visuales.
-        // El proyecto de referencia (BPMNController / onPhaseDragEnd) nunca elimina
-        // clones aquí. La limpieza de orphans se hace en element:drop (ver abajo).
-        // Eliminar clones aquí puede ejecutarse ANTES que element:drop, borrando el
-        // clone justo cuando addPhase lo necesita → la fase no aparece.
         (this.stencil as any).on('element:dragend', () => {
             this.clearLaneDropHighlight();
         });
@@ -652,80 +690,40 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
                 pool.addSwimlane(lane as shapes.bpmn2.Swimlane);
                 this.pool = el as unknown as BPMNPool;
 
-            } else if (isSwimlaneEl(el) || isPhaseEl(el)) {
-                // Detectar el pool destino usando coordenadas paper del drop (más confiable
-                // que evt.data.poolView que depende de detección por coords de cliente durante drag).
+            } else if (isSwimlaneEl(el)) {
+                // Phases handled in element:pointerup (element:drop never fires for phases).
                 const viewsAtDrop = this.paper.findViewsFromPoint({ x, y });
                 const poolViewAtDrop = viewsAtDrop.find((v: any) => isPoolEl(v.model)) ?? null;
-                // Fallback: poolView detectado durante drag → fallback a this.pool
                 const effectivePoolView = poolViewAtDrop
                     ?? evt?.data?.poolView
                     ?? (this.pool ? this.paper.findViewByModel(this.pool as unknown as dia.Cell) : null);
 
                 if (!effectivePoolView) {
-                    // Drop fuera de cualquier pool: eliminar el clone si no está embebido.
                     if (!(el as any).isEmbedded?.()) el.remove();
                     return;
                 }
                 const targetPool = (effectivePoolView as any).model as shapes.bpmn2.CompositePool;
-                if (targetPool) {
-                    if (isPhaseEl(el)) {
-                        // Seguir el patrón del demo (onPhaseDrop en phases.ts):
-                        // usar el clone directamente si es compatible; solo reemplazar si no.
-                        this.graph.startBatch('phase-stencil-drop');
-                        const phaseEl = el as unknown as shapes.bpmn2.Phase;
-                        const isCompat = (phaseEl as any).isCompatibleWithPool?.(targetPool);
-                        let compatiblePhase: shapes.bpmn2.Phase = phaseEl;
-                        if (!isCompat) {
-                            // Orientation mismatch: remove stencil clone, create correct type
-                            (phaseEl as dia.Element).remove();
-                            const newPhase = targetPool.isHorizontal()
-                                ? new BPMNVerticalPhase({
-                                    attrs: { headerText: { text: 'Etapa', fontFamily: 'sans-serif' } },
-                                  } as any)
-                                : new BPMNHorizontalPhase({
-                                    attrs: { headerText: { text: 'Etapa', fontFamily: 'sans-serif' } },
-                                  } as any);
-                            // Agregar al grafo explícitamente antes de addPhase
-                            this.graph.addCell(newPhase as dia.Cell);
-                            compatiblePhase = newPhase as unknown as shapes.bpmn2.Phase;
-                        }
-                        const oCoord = (targetPool as any).getPhaseOrthogonalCoordinate?.() as 'x' | 'y' ?? 'x';
-                        const dropPos = oCoord === 'x' ? x : y;
-                        const existingPhases: unknown[] = (targetPool as any).getPhases?.() ?? [];
-                        const overlapped = (targetPool as any).findPhaseFromOrthogonalCoord?.(dropPos);
-                        if (existingPhases.length > 0 && !overlapped) {
-                            // Drop fuera del rango de fases existentes — no se puede insertar
-                            (compatiblePhase as dia.Element).remove();
-                        } else {
-                            (targetPool as any).addPhase(compatiblePhase, dropPos);
-                        }
-                        this.graph.stopBatch('phase-stencil-drop');
-                    } else {
-                        // Swimlane: si es compatible usar directamente, si no reemplazar
-                        // Batch para evitar renders intermedios
-                        this.graph.startBatch('lane-stencil-drop');
-                        let compatibleLane = el as unknown as shapes.bpmn2.Swimlane;
-                        if (!(el as unknown as shapes.bpmn2.Swimlane).isCompatibleWithPool?.(targetPool)) {
-                            el.remove();
-                            compatibleLane = targetPool.isHorizontal()
-                                ? new BPMNLane({
-                                    attrs: { headerText: { text: 'Nueva área', fontFamily: 'sans-serif' } },
-                                    data: { assignedAreaId: '', label: 'Nueva área' },
-                                  } as any) as unknown as shapes.bpmn2.Swimlane
-                                : new BPMNVerticalLane({
-                                    attrs: { headerText: { text: 'Nueva área', fontFamily: 'sans-serif' } },
-                                    data: { assignedAreaId: '', label: 'Nueva área' },
-                                  } as any) as unknown as shapes.bpmn2.Swimlane;
-                        }
-                        const insertIndex = targetPool.getSwimlaneInsertIndexFromPoint?.({ x, y }) ?? undefined;
-                        targetPool.addSwimlane(compatibleLane, insertIndex);
-                        this.graph.stopBatch('lane-stencil-drop');
-                    }
-                    this.pool = targetPool as unknown as BPMNPool;
-                } else {
+                if (!targetPool) { el.remove(); return; }
+
+                // Swimlane: si es compatible usar directamente, si no reemplazar
+                this.graph.startBatch('lane-stencil-drop');
+                let compatibleLane = el as unknown as shapes.bpmn2.Swimlane;
+                if (!(el as unknown as shapes.bpmn2.Swimlane).isCompatibleWithPool?.(targetPool)) {
                     el.remove();
+                    compatibleLane = targetPool.isHorizontal()
+                        ? new BPMNLane({
+                            attrs: { headerText: { text: 'Nueva área', fontFamily: 'sans-serif' } },
+                            data: { assignedAreaId: '', label: 'Nueva área' },
+                          } as any) as unknown as shapes.bpmn2.Swimlane
+                        : new BPMNVerticalLane({
+                            attrs: { headerText: { text: 'Nueva área', fontFamily: 'sans-serif' } },
+                            data: { assignedAreaId: '', label: 'Nueva área' },
+                          } as any) as unknown as shapes.bpmn2.Swimlane;
                 }
+                const insertIndex = targetPool.getSwimlaneInsertIndexFromPoint?.({ x, y }) ?? undefined;
+                targetPool.addSwimlane(compatibleLane, insertIndex);
+                this.graph.stopBatch('lane-stencil-drop');
+                this.pool = targetPool as unknown as BPMNPool;
             } else {
                 // Regular BPMN element
                 const parent = el?.getParentCell?.();
@@ -792,7 +790,7 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
 
     exportPng(): void {
         if (!this.paper) return;
-        (this.paper as any).exportToPNG((dataUrl: string) => {
+        format.toPNG(this.paper, (dataUrl: string) => {
             const link = document.createElement('a');
             link.download = (this.politica()?.name ?? 'diagrama') + '.png';
             link.href = dataUrl;
@@ -812,12 +810,108 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
         URL.revokeObjectURL(url);
     }
 
+    openAiGenerateDialog(): void {
+        this.aiDiagramDescription = '';
+        this.showAiGenerateDialog.set(true);
+    }
+
+    closeAiGenerateDialog(): void {
+        this.recognition?.stop();
+        this.showAiGenerateDialog.set(false);
+    }
+
+    toggleVoiceInput(): void {
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            this.message.add({ severity: 'warn', summary: 'No disponible', detail: 'Tu navegador no soporta reconocimiento de voz. Usa Chrome o Edge.' });
+            return;
+        }
+
+        if (this.isListening()) {
+            this.recognition?.stop();
+            return;
+        }
+
+        this.recognition = new SpeechRecognition();
+        this.recognition.lang = 'es-ES';
+        this.recognition.continuous = true;
+        this.recognition.interimResults = false;
+
+        this.recognition.onresult = (event: any) => {
+            const transcript = Array.from(event.results as SpeechRecognitionResultList)
+                .map((r: any) => r[0].transcript)
+                .join(' ');
+            this.aiDiagramDescription = (this.aiDiagramDescription ? this.aiDiagramDescription + ' ' : '') + transcript;
+            this.cdr.detectChanges();
+        };
+
+        this.recognition.onend = () => {
+            this.isListening.set(false);
+            this.cdr.detectChanges();
+        };
+
+        this.recognition.onerror = (event: any) => {
+            this.isListening.set(false);
+            if (event.error !== 'no-speech') {
+                this.message.add({ severity: 'error', summary: 'Error de voz', detail: 'No se pudo reconocer el audio: ' + event.error });
+            }
+            this.cdr.detectChanges();
+        };
+
+        this.recognition.start();
+        this.isListening.set(true);
+    }
+
+    generateDiagram(): void {
+        if (!this.aiDiagramDescription.trim()) return;
+        const p = this.politica();
+        this.aiGenerating.set(true);
+
+        const req: GenerateDiagramRequest = {
+            organizationName: '',
+            policyName: p?.name ?? '',
+            policyDescription: this.aiDiagramDescription,
+            areas: this.graph?.getElements()
+                .filter(el => (el as any).get('type') === 'sw1.Lane')
+                .map(el => el.attr('headerText/text') as string ?? '')
+                .filter(Boolean) ?? [],
+            language: 'es',
+        };
+
+        this.aiService.generateDiagram(req, this.orgId, this.policyId).subscribe({
+            next: (res) => {
+                // Freeze while loading to avoid flash of unstyled content
+                this.paper.freeze();
+                this.graph.clear();
+                this.graph.fromJSON(res.diagram as any);
+                const poolCell = this.graph.getCells().find(c => isPoolEl(c as dia.Element));
+                if (poolCell) this.pool = poolCell as unknown as BPMNPool;
+                this.paper.unfreeze();
+                // Give JointJS one tick to render, then fit the view
+                setTimeout(() => {
+                    this.scroller.scrollToContent({ animation: { duration: 400 } });
+                }, 50);
+                this.showAiGenerateDialog.set(false);
+                this.aiGenerating.set(false);
+                this.message.add({ severity: 'success', summary: 'Diagrama generado', detail: 'La IA generó el diagrama correctamente.' });
+            },
+            error: (err) => {
+                this.aiGenerating.set(false);
+                this.message.add({ severity: 'error', summary: 'Error IA', detail: err?.error?.message ?? 'No se pudo generar el diagrama.' });
+            },
+        });
+    }
+
     addNode(nd: NodeDef): void {
-        if (!this.graph) return;
+        this.addNodeAt(nd);
+    }
+
+    addNodeAt(nd: NodeDef, overrideX?: number, overrideY?: number): dia.Element | null {
+        if (!this.graph) return null;
         const lane = this.getActiveLane();
-        let x = 200 + Math.random() * 200;
-        let y = 100 + Math.random() * 80;
-        if (lane) {
+        let x = overrideX ?? (200 + Math.random() * 200);
+        let y = overrideY ?? (100 + Math.random() * 80);
+        if (lane && overrideX === undefined) {
             const pos = lane.position();
             const sz = lane.size();
             x = pos.x + LANE_HEADER_SIZE + 60 + Math.random() * Math.max(sz.width - LANE_HEADER_SIZE - 200, 50);
@@ -826,6 +920,7 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
         const el = this.buildBPMNShape(nd, x, y);
         this.graph.addCell(el);
         if (lane) (lane as any).embed(el);
+        return el;
     }
 
     addLane(): void {
@@ -1050,6 +1145,16 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
         const data = (el as any).get('data') ?? {};
         (el as any).set('data', { ...data, label: newLabel });
         this.selected.set({ ...sel, label: newLabel });
+    }
+
+    updateAssignedAreaId(areaId: string | null): void {
+        const sel = this.selected();
+        if (!sel) return;
+        const el = this.graph.getCell(sel.cellId) as dia.Element;
+        if (!el) return;
+        const data = (el as any).get('data') ?? {};
+        (el as any).set('data', { ...data, assignedAreaId: areaId });
+        this.selected.set({ ...sel, assignedAreaId: areaId });
     }
 
     deleteSelected(): void {
@@ -1286,7 +1391,7 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
             policyDescription: (p as any).description ?? '',
             existingNodes,
             language: 'es',
-        }, this.orgId).subscribe({
+        }, this.orgId, this.policyId).subscribe({
             next: (res) => {
                 this.aiSuggestions.set(res.suggestions ?? []);
                 this.aiTransitions.set(res.suggestedTransitions ?? []);
@@ -1302,10 +1407,77 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
     }
 
     agregarNodoDesdeIA(s: NodeSuggestion): void {
+        if (!this.graph) return;
         const nd = this.nodeDefs.find(n => n.type === (s.type as NodeType)) ?? {
             type: s.type as NodeType, label: s.label, icon: 'pi-box', color: '#94A3B8', bpmnType: 'activity' as const,
         };
-        this.addNode({ ...nd, label: s.label });
+
+        // Determine smart position based on connected elements from transitions
+        const transitions = this.aiTransitions();
+        const relatedLabels = [
+            ...transitions.filter(t => t.from === s.label).map(t => t.to),
+            ...transitions.filter(t => t.to === s.label).map(t => t.from),
+        ];
+
+        // Try to find an existing element to position near
+        let anchorEl: dia.Element | null = null;
+        if (relatedLabels.length > 0) {
+            const cells = this.graph.getElements();
+            anchorEl = cells.find(c => {
+                const lbl = (c as any).attr?.('label/text') ?? (c.attributes as any)?.attrs?.label?.text ?? '';
+                return relatedLabels.includes(lbl);
+            }) ?? null;
+        }
+
+        let x: number | undefined;
+        let y: number | undefined;
+        if (anchorEl) {
+            const pos = anchorEl.position();
+            const sz = anchorEl.size();
+            // Place new node to the right of the anchor, same vertical center
+            x = pos.x + sz.width + 120;
+            y = pos.y;
+        }
+
+        const el = this.addNodeAt({ ...nd, label: s.label }, x, y);
+
+        // Create automatic connections based on suggested transitions
+        if (el) {
+            const cells = this.graph.getElements();
+            const findByLabel = (label: string) =>
+                cells.find(c => {
+                    const lbl = (c as any).attr?.('label/text') ?? (c.attributes as any)?.attrs?.label?.text ?? '';
+                    return lbl === label;
+                });
+
+            transitions.forEach(t => {
+                if (t.from === s.label) {
+                    const target = findByLabel(t.to);
+                    if (target && target.id !== el.id) {
+                        const link = new shapes.bpmn2.Flow();
+                        link.source(el);
+                        link.target(target);
+                        if (t.condition) link.label(0, { attrs: { text: { text: t.condition } } });
+                        this.graph.addCell(link);
+                    }
+                } else if (t.to === s.label) {
+                    const source = findByLabel(t.from);
+                    if (source && source.id !== el.id) {
+                        const link = new shapes.bpmn2.Flow();
+                        link.source(source);
+                        link.target(el);
+                        if (t.condition) link.label(0, { attrs: { text: { text: t.condition } } });
+                        this.graph.addCell(link);
+                    }
+                }
+            });
+        }
+
+        this.message.add({
+            severity: 'success',
+            summary: 'Nodo agregado',
+            detail: `"${s.label}" fue insertado en el diagrama`,
+        });
     }
 
     sugerirCamposIA(): void {
@@ -1323,7 +1495,7 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
             areaName: '',
             existingFields: sel.formFields.map(f => f.label),
             language: 'es',
-        }, this.orgId).subscribe({
+        }, this.orgId, this.policyId).subscribe({
             next: (res) => {
                 this.aiFieldSuggestions.set(res.suggestions ?? []);
                 this.aiFieldsLoading.set(false);
@@ -1348,7 +1520,13 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
         const updatedFields = [...sel.formFields, field];
         this.updateNodeFormData(sel.cellId, updatedFields);
         this.selected.set({ ...sel, formFields: updatedFields });
-        this.aiFieldsDialogVisible = false;
+        this.message.add({
+            severity: 'success',
+            summary: 'Campo agregado',
+            detail: `"${f.label}" fue agregado al formulario`,
+        });
+        // Remove the added suggestion from the list so user can continue adding others
+        this.aiFieldSuggestions.set(this.aiFieldSuggestions().filter(s => s.fieldId !== f.fieldId));
     }
 
     publicar(): void {        this.publishing.set(true);

@@ -44,8 +44,12 @@
                         @if (p.status === 'DRAFT') {
                             <p-button icon="pi pi-pencil" severity="info" [text]="true" size="small"
                                 pTooltip="Diseñar" [routerLink]="['/admin/politicas', p.id, 'editar']" />
+                            <p-button icon="pi pi-pen-to-square" severity="secondary" [text]="true" size="small"
+                                pTooltip="Renombrar" (onClick)="abrirRenombrar(p)" />
                             <p-button icon="pi pi-send" severity="success" [text]="true" size="small"
                                 pTooltip="Publicar" (onClick)="confirmarPublicar(p)" />
+                            <p-button icon="pi pi-trash" severity="danger" [text]="true" size="small"
+                                pTooltip="Eliminar borrador" (onClick)="confirmarEliminar(p)" />
                         }
                         @if (p.status === 'PUBLISHED') {
                             <p-button icon="pi pi-eye" severity="info" [text]="true" size="small"
@@ -98,5 +102,24 @@
         <p-button label="Cancelar" severity="secondary" [outlined]="true" [disabled]="saving()" (onClick)="nuevoDialogVisible=false" />
         <p-button label="Crear y Diseñar" icon="pi pi-sitemap" [loading]="saving()"
             [disabled]="!nuevoForm.policyKey || !nuevoForm.name" (onClick)="crearPolitica()" />
+    </ng-template>
+</p-dialog>
+
+<!-- Dialog renombrar política -->
+<p-dialog [(visible)]="renombrarDialogVisible" header="Editar Nombre" [modal]="true" [style]="{width:'420px'}" [closable]="!saving()">
+    <div class="flex flex-col gap-4 py-2">
+        <div class="flex flex-col gap-1">
+            <label class="font-medium">Nombre <span class="text-red-500">*</span></label>
+            <input pInputText [(ngModel)]="renombrarForm.name" class="w-full" />
+        </div>
+        <div class="flex flex-col gap-1">
+            <label class="font-medium">Descripción</label>
+            <textarea pTextarea [(ngModel)]="renombrarForm.description" rows="3" class="w-full"></textarea>
+        </div>
+    </div>
+    <ng-template #footer>
+        <p-button label="Cancelar" severity="secondary" [outlined]="true" [disabled]="saving()" (onClick)="renombrarDialogVisible=false" />
+        <p-button label="Guardar" icon="pi pi-check" [loading]="saving()"
+            [disabled]="!renombrarForm.name.trim()" (onClick)="guardarRenombrar()" />
     </ng-template>
 </p-dialog>

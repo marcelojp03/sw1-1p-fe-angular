@@ -18,7 +18,6 @@ import { MultiSelectModule } from 'primeng/multiselect';
 import { PoliticaService } from './politicas.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { PolicySummaryResponse, CreatePolicyRequest } from './politica.model';
-
 @Component({
     selector: 'app-admin-politicas',
     standalone: true,
@@ -45,6 +44,11 @@ export class AdminPoliticasComponent implements OnInit {
     nuevoDialogVisible = false;
     saving = signal(false);
     nuevoForm: Partial<CreatePolicyRequest> = { policyKey: '', name: '', description: '', allowedStartChannels: [] };
+
+    // Dialog renombrar
+    renombrarDialogVisible = false;
+    renombrarId = '';
+    renombrarForm = { name: '', description: '' };
 
     channels = [
         { label: 'Web', value: 'WEB' },
@@ -152,10 +156,51 @@ export class AdminPoliticasComponent implements OnInit {
 
     statusSeverity(status: string): 'success' | 'info' | 'warn' | 'danger' | 'secondary' {
         const map: Record<string, 'success' | 'info' | 'warn' | 'danger' | 'secondary'> = {
-            DRAFT: 'warn',
-            PUBLISHED: 'success',
-            ARCHIVED: 'secondary',
+            DRAFT: 'warn', PUBLISHED: 'success', ARCHIVED: 'secondary',
         };
         return map[status] ?? 'info';
+    }
+
+    abrirRenombrar(p: PolicySummaryResponse): void {
+        this.renombrarId = p.id;
+        this.renombrarForm = { name: p.name, description: '' };
+        this.renombrarDialogVisible = true;
+    }
+
+    guardarRenombrar(): void {
+        if (!this.renombrarForm.name.trim()) return;
+        this.saving.set(true);
+        this.politicaService.updateMeta(this.renombrarId, this.renombrarForm).subscribe({
+            next: () => {
+                this.saving.set(false);
+                this.renombrarDialogVisible = false;
+                this.message.add({ severity: 'success', summary: 'Actualizada', detail: 'Nombre actualizado correctamente' });
+                this.load();
+            },
+            error: () => {
+                this.saving.set(false);
+                this.message.add({ severity: 'error', summary: 'Error', detail: 'No se pudo actualizar' });
+            },
+        });
+    }
+
+    confirmarEliminar(p: PolicySummaryResponse): void {
+        this.confirm.confirm({
+            message: `¿Eliminar la política "${p.name}" (DRAFT)? Esta acción no se puede deshacer.`,
+            header: 'Eliminar Política',
+            icon: 'pi pi-trash',
+            acceptButtonStyleClass: 'p-button-danger',
+            accept: () => this.eliminar(p.id),
+        });
+    }
+
+    eliminar(id: string): void {
+        this.politicaService.delete(id).subscribe({
+            next: () => {
+                this.message.add({ severity: 'success', summary: 'Eliminada', detail: 'Política eliminada' });
+                this.load();
+            },
+            error: () => this.message.add({ severity: 'error', summary: 'Error', detail: 'No se pudo eliminar' }),
+        });
     }
 }
