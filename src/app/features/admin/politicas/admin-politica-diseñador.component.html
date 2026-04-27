@@ -17,16 +17,6 @@
         </div>
         <div class="flex items-center gap-1">
           @if (!isReadOnly()) {
-            <!-- Modo conexión -->
-            <p-button
-              [label]="linkMode() ? 'Conectar' : 'Mover'"
-              [icon]="linkMode() ? 'pi pi-arrows-h' : 'pi pi-arrows-alt'"
-              [severity]="linkMode() ? 'warn' : 'secondary'"
-              size="small" [outlined]="true"
-              (onClick)="toggleLinkMode()"
-              pTooltip="Cambiar modo mover / conectar"
-            />
-            <p-divider layout="vertical" styleClass="mx-1" />
             <!-- Undo / Redo -->
             <p-button icon="pi pi-undo" [text]="true" severity="secondary" size="small"
               pTooltip="Deshacer" (onClick)="undo()" />
@@ -88,7 +78,7 @@
           } <!-- end @if (!isReadOnly()) stencil -->
 
           <!-- Center: Canvas -->
-          <div class="flex-1 overflow-hidden canvas-wrapper" [class.link-mode]="linkMode()">
+          <div class="flex-1 overflow-hidden canvas-wrapper">
             <div #canvas id="joint-canvas"></div>
           </div>
 

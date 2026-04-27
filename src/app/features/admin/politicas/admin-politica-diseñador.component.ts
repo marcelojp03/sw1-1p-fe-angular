@@ -20,6 +20,10 @@ import { CheckboxModule } from 'primeng/checkbox';
 import { dia, ui, shapes, elementTools, linkTools } from '@joint/plus';
 import {
     BPMNPool, BPMNPoolView, BPMNLane, BPMNLaneView,
+    BPMNVerticalPool, BPMNVerticalPoolView,
+    BPMNVerticalLane, BPMNVerticalLaneView,
+    BPMNVerticalPhase, BPMNVerticalPhaseView,
+    BPMNHorizontalPhase, BPMNHorizontalPhaseView,
     BPMNEvent, BPMNActivity, BPMNGateway,
     APP_SHAPES, DEFAULT_POOL_WIDTH, MIN_LANE_SIZE, LANE_HEADER_SIZE,
 } from './bpmn-shapes';
@@ -126,6 +130,7 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
     private paper: dia.Paper;
     private scroller: ui.PaperScroller;
     private stencil: ui.Stencil;
+    private snaplines: ui.Snaplines;
     private commandManager: dia.CommandManager;
     private pool: BPMNPool | null = null;
     private policyId!: string;
@@ -159,6 +164,7 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
 
     ngOnDestroy(): void {
         this.resizeObserver?.disconnect();
+        this.snaplines?.stopListening();
         this.scroller?.remove();
         this.stencil?.remove();
         this.stompClient?.deactivate();
@@ -195,8 +201,10 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
             background: { color: '#F3F7F6' },
             frozen: true,
             async: true,
-            sorting: dia.Paper.sorting.APPROX,
+            sorting: dia.Paper.sorting.EXACT,
             clickThreshold: 10,
+            preventDefaultBlankAction: false,
+            preventDefaultViewAction: false,
             embeddingMode: true,
             findParentBy: 'center',
             frontParentOnly: false,
@@ -215,7 +223,12 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
             },
             validateEmbedding: (childView: any, parentView: any) => {
                 const child = childView.model, parent = parentView.model;
-                if (shapes.bpmn2.CompositePool.isPool(child) || shapes.bpmn2.Swimlane.isSwimlane(child)) return false;
+                if (shapes.bpmn2.CompositePool.isPool(child)) return false;
+                // Allow lanes AND phases to preview snap hint when dragged over a pool
+                const isPhase = (shapes.bpmn2 as any).Phase?.isPhase?.(child);
+                if (shapes.bpmn2.Swimlane.isSwimlane(child) || isPhase) {
+                    return shapes.bpmn2.CompositePool.isPool(parent);
+                }
                 return shapes.bpmn2.Swimlane.isSwimlane(parent);
             },
             interactive: (cellView: any) => {
@@ -225,8 +238,14 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
                 return true;
             },
             highlighting: {
-                embedding: { name: 'addClass', options: { className: 'hgl-container' } },
-                connecting: { name: 'addClass', options: { className: 'hgl-target' } },
+                embedding: {
+                    name: 'stroke',
+                    options: { padding: 6, rx: 4, ry: 4, attrs: { 'stroke-width': 3, stroke: '#4f46e5', 'stroke-dasharray': '6,3', fill: 'none' } },
+                },
+                connecting: {
+                    name: 'stroke',
+                    options: { padding: 5, attrs: { 'stroke-width': 3, stroke: '#059669', fill: 'none' } },
+                },
             },
         } as any);
 
@@ -234,6 +253,7 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
         this.scroller = new ui.PaperScroller({
             paper: this.paper,
             autoResizePaper: true,
+            padding: 100,
             cursor: 'grab',
         });
         Object.assign(this.scroller.el.style, {
@@ -241,6 +261,10 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
         });
         this.canvasEl.nativeElement.appendChild(this.scroller.el);
         this.scroller.render();
+
+        // ── Snaplines ──────────────────────────────────────────────
+        this.snaplines = new ui.Snaplines({ paper: this.paper, tolerance: 5 });
+        this.snaplines.startListening();
 
         // ── Stencil (edit mode only) ────────────────────────────────
         if (this.stencilContainerEl?.nativeElement && !this.isReadOnly()) {
@@ -271,43 +295,42 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
         });
 
         this.paper.on('element:pointerclick', (view: any) => {
-            if (this.linkMode()) return;
-            this.paper.removeTools();
+            this.removeAllTools();
             const el = view.model as dia.Element;
+            const freeTransformOpts = { cellView: view, theme: 'bpmn', resizeGrid: { width: 10, height: 10 }, minLaneSize: MIN_LANE_SIZE };
             if (shapes.bpmn2.CompositePool.isPool(el)) {
                 this.selected.set(null); this.selectedLane.set(null); this.selectedLink.set(null);
+                view.addTools(new dia.ToolsView({
+                    tools: [new elementTools.Remove({ x: -15, y: 0 })],
+                }));
+                new (ui as any).BPMNFreeTransform(freeTransformOpts);
             } else if (shapes.bpmn2.Swimlane.isSwimlane(el)) {
                 this.selected.set(null); this.selectedLink.set(null);
                 this.onSelectLane(el as unknown as shapes.bpmn2.Swimlane);
-                // Only Remove for lanes (no Connect — connecting lanes is not allowed)
                 view.addTools(new dia.ToolsView({
-                    tools: [new elementTools.Remove({ x: '100%', y: 0, offset: { x: -8, y: -8 } })],
+                    tools: [new elementTools.Remove({ x: -15, y: 0 })],
                 }));
+                new (ui as any).BPMNFreeTransform(freeTransformOpts);
             } else {
                 this.selectedLink.set(null); this.selectedLane.set(null);
                 this.onSelectElement(el);
-                // Remove + Connect tools for regular elements
                 view.addTools(new dia.ToolsView({
                     tools: [
-                        new elementTools.Remove({ x: '100%', y: 0, offset: { x: -8, y: -8 } }),
-                        new elementTools.Connect({ x: '100%', y: '50%', offset: { x: 10 } }),
+                        new elementTools.Remove({ x: -15, y: 0 }),
+                        new elementTools.Connect({ x: 'calc(w + 15)', y: '50%' }),
                     ],
                 }));
+                new (ui as any).BPMNFreeTransform(freeTransformOpts);
             }
         });
 
         // Double-click: inline label editing
-        this.paper.on('element:pointerdblclick', (view: any) => {
-            if (this.isReadOnly()) return;
-            const el = view.model as dia.Element;
-            if (shapes.bpmn2.CompositePool.isPool(el)) return;
-            const selector = shapes.bpmn2.Swimlane.isSwimlane(el) ? 'headerText' : 'label';
-            this.editCellLabel(view, selector);
+        this.paper.on('element:pointerdblclick', (view: any, evt: any) => {
+            this.editCellLabel(view, evt);
         });
 
         this.paper.on('link:pointerclick', (view: any) => {
-            if (this.linkMode()) return;
-            this.paper.removeTools();
+            this.removeAllTools();
             this.selected.set(null); this.selectedLane.set(null);
             this.onSelectLink(view.model as dia.Link);
             view.addTools(new dia.ToolsView({
@@ -316,19 +339,41 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
             }));
         });
 
+        this.paper.on('link:mouseenter', (linkView: any, evt: any) => {
+            if (evt.buttons !== 0) return;
+            linkView.addTools(new dia.ToolsView({
+                name: 'hover',
+                tools: [new linkTools.Vertices(), new linkTools.Remove()],
+            }));
+        });
+
+        this.paper.on('link:mouseleave', (linkView: any) => {
+            linkView.removeTools();
+        });
+
         this.paper.on('blank:pointerclick', () => {
-            this.paper.removeTools();
+            this.removeAllTools();
             this.selected.set(null); this.selectedLane.set(null); this.selectedLink.set(null);
+        });
+
+        // After any element move, bring non-pool/non-lane elements to front so
+        // they never disappear behind the pool background rectangle.
+        this.paper.on('element:pointerup', (view: any) => {
+            const el = view.model as dia.Element;
+            if (!shapes.bpmn2.CompositePool.isPool(el) && !shapes.bpmn2.Swimlane.isSwimlane(el)) {
+                el.toFront();
+            }
         });
     }
 
     private initStencil(): void {
         this.stencil = new ui.Stencil({
             paper: this.paper,
+            snaplines: this.snaplines,
             usePaperGrid: true,
-            width: 200,
+            width: 210,
             groups: {
-                areas:    { label: 'Áreas', index: 1 },
+                pools:    { label: 'Estructura', index: 1 },
                 events:   { label: 'Eventos', index: 2 },
                 tasks:    { label: 'Actividades', index: 3 },
                 gateways: { label: 'Gateways', index: 4 },
@@ -342,20 +387,47 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
                 columns: 2,
                 rowHeight: 'compact',
                 rowGap: 10,
-                columnWidth: 84,
+                columnWidth: 88,
                 marginY: 10,
                 resizeToFit: false,
                 dx: 0, dy: 0,
+            },
+            groupLayout: {
+                pools: {
+                    columns: 1,
+                    rowHeight: 'compact',
+                    rowGap: 10,
+                    columnWidth: 178,
+                    marginY: 8,
+                    dx: 0, dy: 0,
+                    resizeToFit: false,
+                } as any,
             },
         });
         this.stencilContainerEl!.nativeElement.appendChild(this.stencil.el);
         this.stencil.render();
 
         this.stencil.load({
-            areas: [
+            pools: [
+                // Pool horizontal: header top (40px) + content area
+                new BPMNPool({
+                    size: { width: 178, height: 90 },
+                    attrs: { headerText: { text: 'Pool Horizontal', fontFamily: 'sans-serif', fontSize: 11 } },
+                } as any),
+                // Pool vertical: header left (40px) + content area
+                new BPMNVerticalPool({
+                    size: { width: 178, height: 90 },
+                    attrs: { headerText: { text: 'Pool Vertical', fontFamily: 'sans-serif', fontSize: 11 } },
+                } as any),
+                // Lane horizontal (swimlane para pool horizontal)
                 new BPMNLane({
-                    size: { width: 160, height: 40 },
-                    attrs: { headerText: { text: 'Nueva área', fontFamily: 'sans-serif', fontSize: 10 } },
+                    size: { width: 178, height: 60 },
+                    attrs: { headerText: { text: '+ Nueva área', fontFamily: 'sans-serif', fontSize: 10 } },
+                } as any),
+                // Phase vertical (etapa/milestone en pool horizontal)
+                new BPMNVerticalPhase({
+                    size: { width: 80, height: 60 },
+                    attrs: { headerText: { text: '+ Fase', fontFamily: 'sans-serif', fontSize: 10 } },
                 } as any),
             ],
             events: [
@@ -398,23 +470,68 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
 
         // Handle stencil element drops
         (this.stencil as any).on('element:drop', (_appView: any, elementView: any, _evt: any, _x: number, _y: number) => {
-            const el = elementView.model as dia.Element;
-            if (shapes.bpmn2.Swimlane.isSwimlane(el)) {
-                // The stencil places the lane on the paper — remove and re-add via pool.addSwimlane()
-                if (this.pool) {
-                    el.remove();
-                    const lane = new BPMNLane({
-                        attrs: { headerText: { text: 'Nueva área', fontFamily: 'sans-serif' } },
-                        data: { assignedAreaId: '', label: 'Nueva área' },
-                    } as any);
-                    (this.pool as any).addSwimlane(lane);
+            const el = elementView?.model as dia.Element | undefined;
+            if (!el) return;
+            if (shapes.bpmn2.CompositePool.isPool(el)) {
+                // New pool dropped: set width and add a default swimlane
+                el.prop(['size', 'width'], DEFAULT_POOL_WIDTH);
+                const isVertical = el.get('type') === 'sw1.VerticalPool';
+                const lane = isVertical
+                    ? new BPMNVerticalLane({
+                        attrs: { headerText: { text: 'Área 1', fontFamily: 'sans-serif' } },
+                        data: { assignedAreaId: '', label: 'Área 1' },
+                      } as any)
+                    : new BPMNLane({
+                        attrs: { headerText: { text: 'Área 1', fontFamily: 'sans-serif' } },
+                        data: { assignedAreaId: '', label: 'Área 1' },
+                      } as any);
+                (el as any).addSwimlane(lane);
+                this.pool = el as unknown as BPMNPool;
+            } else if (
+                shapes.bpmn2.Swimlane.isSwimlane(el) ||
+                (shapes.bpmn2 as any).Phase?.isPhase?.(el)
+            ) {
+                // Lane/phase dropped: use actual parent pool (from embedding snap) or fallback to this.pool
+                const embeddedIn = el.getParentCell?.();
+                const targetPool = (embeddedIn && shapes.bpmn2.CompositePool.isPool(embeddedIn))
+                    ? embeddedIn as dia.Element
+                    : (this.pool as unknown as dia.Element);
+                if (targetPool) {
+                    el.remove(); // Remove the stencil ghost
+                    const isVerticalPool = (targetPool as any).get('type') === 'sw1.VerticalPool';
+                    const isPhase = (shapes.bpmn2 as any).Phase?.isPhase?.(el);
+                    if (isPhase) {
+                        // VerticalPhase → horizontal pool; HorizontalPhase → vertical pool
+                        const phase = isVerticalPool
+                            ? new BPMNHorizontalPhase({
+                                attrs: { headerText: { text: 'Etapa', fontFamily: 'sans-serif' } },
+                              } as any)
+                            : new BPMNVerticalPhase({
+                                attrs: { headerText: { text: 'Etapa', fontFamily: 'sans-serif' } },
+                              } as any);
+                        (targetPool as any).addPhase(phase);
+                    } else {
+                        const lane = isVerticalPool
+                            ? new BPMNVerticalLane({
+                                attrs: { headerText: { text: 'Nueva área', fontFamily: 'sans-serif' } },
+                                data: { assignedAreaId: '', label: 'Nueva área' },
+                              } as any)
+                            : new BPMNLane({
+                                attrs: { headerText: { text: 'Nueva área', fontFamily: 'sans-serif' } },
+                                data: { assignedAreaId: '', label: 'Nueva área' },
+                              } as any);
+                        (targetPool as any).addSwimlane(lane);
+                    }
+                    this.pool = targetPool as unknown as BPMNPool;
                 }
             } else {
-                // Regular element: adjust parent lane to contain it
-                const parent = el.getParentCell();
+                // Regular element: expand parent lane to contain it
+                const parent = el?.getParentCell?.();
                 if (parent && shapes.bpmn2.Swimlane.isSwimlane(parent) && this.pool) {
                     (this.pool as any).adjustToContainElements(parent as shapes.bpmn2.Swimlane);
                 }
+                // Ensure task nodes are always rendered above the pool background
+                el.toFront();
             }
         });
     }
@@ -713,17 +830,37 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
     /**
      * Overlays a native <textarea> on top of the JointJS element so the user
      * can edit the label inline (same approach as the JointJS demo).
+     * Uses the background node for accurate bbox (not the text node).
      */
-    private editCellLabel(elementView: any, selector: string): void {
+    private editCellLabel(elementView: any, evt?: any): void {
+        if (this.isReadOnly()) return;
         const paper = this.paper;
         const element = elementView.model as dia.Element;
-        const attrPath = `attrs/${selector}/text`;
+        const isPool = shapes.bpmn2.CompositePool.isPool(element);
+        const isLane = shapes.bpmn2.Swimlane.isSwimlane(element);
 
-        const node = elementView.findNode(selector) as SVGElement | null;
-        if (!node) return;
+        // For pools/lanes: only allow editing when clicking on the header area
+        if ((isPool || isLane) && evt) {
+            const target = evt.target as Element;
+            if (target.tagName !== 'tspan' && target.getAttribute('joint-selector') !== 'header') return;
+        }
 
-        const currentText = (element.prop(attrPath) as string) ?? '';
-        const bbox = elementView.getNodeBBox(node) as { x: number; y: number; width: number; height: number };
+        let bgSelector: string;
+        let textAttrPath: string;
+        if (isPool || isLane) {
+            bgSelector = 'header';
+            textAttrPath = 'attrs/headerText/text';
+        } else {
+            const elemType = element.get('type') as string;
+            textAttrPath = 'attrs/label/text';
+            bgSelector = elemType === 'sw1.Gateway' ? 'body' : 'background';
+        }
+
+        const bgNode = elementView.findNode(bgSelector) as SVGElement | null;
+        if (!bgNode) return;
+
+        const currentText = (element.prop(textAttrPath) as string) ?? '';
+        const bbox = elementView.getNodeBBox(bgNode) as { x: number; y: number; width: number; height: number };
         const m = paper.matrix();
 
         const textarea = document.createElement('textarea');
@@ -741,7 +878,7 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
             'border-radius: 3px',
             'outline: none',
             'background: rgba(255,255,255,0.96)',
-            'font-size: 12px',
+            `font-size: ${Math.max(Math.round(12 * m.a), 10)}px`,
             'font-family: sans-serif',
             'padding: 4px',
             'overflow: hidden',
@@ -754,25 +891,36 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
 
         const commit = () => {
             const newText = textarea.value.trim() || currentText;
-            element.prop(attrPath, newText);
-            const data = (element as any).get('data') ?? {};
-            (element as any).set('data', { ...data, label: newText });
-            const sel = this.selected();
-            if (sel?.cellId === element.id) this.selected.set({ ...sel, label: newText });
-            const sl = this.selectedLane();
-            if (sl?.cellId === element.id) this.selectedLane.set({ ...sl, label: newText });
+            element.prop(textAttrPath, newText);
+            if (!isPool) {
+                const data = (element as any).get('data') ?? {};
+                (element as any).set('data', { ...data, label: newText });
+                if (isLane) {
+                    const sl = this.selectedLane();
+                    if (sl?.cellId === element.id) this.selectedLane.set({ ...sl, label: newText });
+                } else {
+                    const sel = this.selected();
+                    if (sel?.cellId === element.id) this.selected.set({ ...sel, label: newText });
+                }
+            }
             textarea.remove();
         };
 
         textarea.addEventListener('blur', commit);
-        textarea.addEventListener('keydown', (evt: KeyboardEvent) => {
-            if (evt.key === 'Enter' && !evt.shiftKey) { evt.preventDefault(); textarea.blur(); }
-            if (evt.key === 'Escape') { textarea.value = currentText; textarea.blur(); }
+        textarea.addEventListener('keydown', (ev: KeyboardEvent) => {
+            if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); textarea.blur(); }
+            if (ev.key === 'Escape') { textarea.value = currentText; textarea.blur(); }
         });
     }
 
     toggleLinkMode(): void {
         this.linkMode.set(!this.linkMode());
+    }
+
+    private removeAllTools(): void {
+        if (!this.paper) return;
+        (ui as any).BPMNFreeTransform?.clear?.(this.paper);
+        this.paper.removeTools();
     }
 
     guardar(): void {
