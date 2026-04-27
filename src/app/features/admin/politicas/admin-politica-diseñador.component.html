@@ -15,21 +15,41 @@
             </div>
           }
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-1">
           @if (!isReadOnly()) {
+            <!-- Modo conexión -->
             <p-button
-              [label]="linkMode() ? 'Modo: Conectar' : 'Modo: Mover'"
+              [label]="linkMode() ? 'Conectar' : 'Mover'"
               [icon]="linkMode() ? 'pi pi-arrows-h' : 'pi pi-arrows-alt'"
               [severity]="linkMode() ? 'warn' : 'secondary'"
-              size="small"
-              [outlined]="true"
+              size="small" [outlined]="true"
               (onClick)="toggleLinkMode()"
-              pTooltip="Cambiar entre modo mover y modo conectar"
+              pTooltip="Cambiar modo mover / conectar"
             />
-            <p-button label="Guardar" icon="pi pi-save" size="small" [loading]="saving()"
-              (onClick)="guardar()" />
+            <p-divider layout="vertical" styleClass="mx-1" />
+            <!-- Undo / Redo -->
+            <p-button icon="pi pi-undo" [text]="true" severity="secondary" size="small"
+              pTooltip="Deshacer" (onClick)="undo()" />
+            <p-button icon="pi pi-refresh" [text]="true" severity="secondary" size="small"
+              pTooltip="Rehacer" (onClick)="redo()" />
+            <p-divider layout="vertical" styleClass="mx-1" />
+            <!-- Zoom -->
+            <p-button icon="pi pi-search-minus" [text]="true" severity="secondary" size="small"
+              pTooltip="Reducir" (onClick)="zoomOut()" />
+            <p-button icon="pi pi-search-plus" [text]="true" severity="secondary" size="small"
+              pTooltip="Ampliar" (onClick)="zoomIn()" />
+            <p-button icon="pi pi-expand" [text]="true" severity="secondary" size="small"
+              pTooltip="Ajustar al contenido" (onClick)="zoomFit()" />
+            <p-divider layout="vertical" styleClass="mx-1" />
+            <!-- Export -->
+            <p-button icon="pi pi-image" [text]="true" severity="secondary" size="small"
+              pTooltip="Exportar PNG" (onClick)="exportPng()" />
+            <p-button icon="pi pi-file-export" [text]="true" severity="secondary" size="small"
+              pTooltip="Exportar JSON" (onClick)="exportJson()" />
+            <p-divider layout="vertical" styleClass="mx-1" />
+            <!-- IA -->
             <p-button
-              label="Sugerir con IA"
+              label="IA"
               icon="pi pi-sparkles"
               size="small"
               severity="secondary"
@@ -38,6 +58,9 @@
               pTooltip="Sugerir nodos con Inteligencia Artificial"
               (onClick)="abrirDialogoAI()"
             />
+            <!-- Guardar -->
+            <p-button label="Guardar" icon="pi pi-save" size="small" [loading]="saving()"
+              (onClick)="guardar()" />
           }
           @if (isReadOnly()) {
             <p-tag value="Solo lectura" severity="secondary" icon="pi pi-lock" />
@@ -59,40 +82,13 @@
         <!-- Designer layout -->
         <div class="flex flex-1 overflow-hidden">
 
-          <!-- Left: Palette (solo en modo edición) -->
+          <!-- Left: Stencil (solo en modo edición) -->
           @if (!isReadOnly()) {
-          <div class="w-52 flex-shrink-0 overflow-y-auto bg-surface-50 border-r border-surface-200 p-3">
-            <p class="text-xs font-semibold text-surface-400 uppercase mb-2">Áreas / Swimlanes</p>
-            <button class="palette-btn lane-btn w-full mb-3" (click)="addLane()">
-              <i class="pi pi-table text-surface-500"></i>
-              <span>+ Agregar área</span>
-            </button>
-            <p-divider styleClass="my-2" />
-            <p class="text-xs font-semibold text-surface-400 uppercase mb-3">Nodos</p>
-            <div class="flex flex-col gap-2">
-              @for (nd of nodeDefs; track nd.type) {
-                <button class="palette-btn" (click)="addNode(nd)">
-                  @switch (nd.bpmnType) {
-                    @case ('event') { <span class="dot" [style.background]="nd.color"></span> }
-                    @case ('gateway') { <span class="diamond" [style.background]="nd.color"></span> }
-                    @default { <span class="sq" [style.background]="nd.color"></span> }
-                  }
-                  <span>{{ nd.label }}</span>
-                </button>
-              }
-            </div>
-            <p-divider />
-            <p class="text-xs font-semibold text-surface-400 uppercase mb-2">Ayuda</p>
-            <p class="text-xs text-surface-400 leading-relaxed">
-              Haz clic en un tipo para agregar al canvas.<br/>
-              En <strong>modo conectar</strong>, arrastra desde un nodo origen al nodo destino.<br/>
-              Selecciona un nodo para editar sus propiedades.
-            </p>
-          </div>
-          } <!-- end @if (!isReadOnly()) paleta -->
+            <div #stencilContainer class="stencil-host flex-shrink-0 overflow-hidden border-r border-surface-200 bg-surface-50"></div>
+          } <!-- end @if (!isReadOnly()) stencil -->
 
           <!-- Center: Canvas -->
-          <div class="flex-1 overflow-auto canvas-wrapper" [class.link-mode]="linkMode()">
+          <div class="flex-1 overflow-hidden canvas-wrapper" [class.link-mode]="linkMode()">
             <div #canvas id="joint-canvas"></div>
           </div>
 
