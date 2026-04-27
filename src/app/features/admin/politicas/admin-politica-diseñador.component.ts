@@ -175,9 +175,12 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
     private initCanvas(p: PolicyResponse): void {
         if (!this.canvasEl?.nativeElement) return;
 
-        // ── Graph + CommandManager ─────────────────────────────────
+        // ── Graph ─────────────────────────────────────────────────
+        // CommandManager is intentionally NOT attached here.
+        // It is created after the initial diagram is loaded to avoid
+        // recording the initial graph.fromJSON() as undoable commands,
+        // which causes "cellB is undefined" errors in JointJS internals.
         this.graph = new dia.Graph({}, { cellNamespace: APP_SHAPES });
-        this.commandManager = new dia.CommandManager({ graph: this.graph });
 
         // ── Canvas size fix via ResizeObserver ─────────────────────
         const canvasWrapper = this.canvasEl.nativeElement.parentElement!;
@@ -290,6 +293,9 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
             this.createInitialPool(p.name);
         }
 
+        // ── CommandManager (AFTER initial load to avoid cellB-undefined errors) ──
+        this.commandManager = new dia.CommandManager({ graph: this.graph });
+
         this.scroller.scrollToContent({ animation: false });
         this.paper.unfreeze();
 
@@ -375,8 +381,24 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
             this.selected.set(null); this.selectedLane.set(null); this.selectedLink.set(null);
         });
 
-        // When an existing lane/phase is moved on the canvas, highlight the target pool
-        (this.paper as any).on('element:pointermove', (view: any, _evt: any, x: number, y: number) => {
+        // Pan/navegar el canvas arrastrando el fondo
+        this.paper.on('blank:pointerdown', (evt: any) => {
+            this.scroller.startPanning(evt);
+        });
+
+        // Al empezar a arrastrar una lane o phase: bloquear movimiento libre
+        // (se snappea al pool destino en pointerup, igual que bpmn-editor)
+        (this.paper as any).on('element:pointerdown', (view: any, evt: any) => {
+            const el = view.model as dia.Element;
+            if (isSwimlaneEl(el) || isPhaseEl(el)) {
+                evt.data = evt.data || {};
+                evt.data.targetPoolView = null;
+                view.preventDefaultInteraction(evt);
+            }
+        });
+
+        // Resaltar el pool destino mientras se arrastra una lane o phase
+        (this.paper as any).on('element:pointermove', (view: any, evt: any, x: number, y: number) => {
             const el = view.model as dia.Element;
             if (!isSwimlaneEl(el) && !isPhaseEl(el)) return;
             this.clearLaneDropHighlight();
@@ -384,6 +406,8 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
             const poolView = views.find(
                 (v: any) => isPoolEl(v.model) && v !== view
             );
+            evt.data = evt.data || {};
+            evt.data.targetPoolView = poolView ?? null;
             if (poolView) {
                 highlighters.mask.add(poolView, 'body', '_lane_drop_', {
                     attrs: { stroke: '#0075f2', 'stroke-width': 3 },
@@ -391,12 +415,57 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
             }
         });
 
-        // On pointer up: clear highlights, bring regular elements to front
-        (this.paper as any).on('element:pointerup', (view: any) => {
+        // Al soltar: integrar lane/phase en el pool destino, o ajustar pool si es elemento regular
+        (this.paper as any).on('element:pointerup', (view: any, evt: any, x: number, y: number) => {
             this.clearLaneDropHighlight();
             const el = view.model as dia.Element;
-            if (!isPoolEl(el) && !isSwimlaneEl(el)) {
+
+            if (isSwimlaneEl(el)) {
+                const targetPool = (evt?.data?.targetPoolView?.model) as shapes.bpmn2.CompositePool | undefined;
+                if (targetPool) {
+                    const lane = el as unknown as shapes.bpmn2.Swimlane;
+                    let compatibleLane = lane;
+                    if (!(lane as any).isCompatibleWithPool?.(targetPool)) {
+                        const text = (lane as any).attr?.('headerText/text') as string || 'Nueva área';
+                        const data = (lane as any).get?.('data') ?? {};
+                        lane.remove();
+                        compatibleLane = targetPool.isHorizontal()
+                            ? new BPMNLane({ attrs: { headerText: { text, fontFamily: 'sans-serif' } }, data } as any) as unknown as shapes.bpmn2.Swimlane
+                            : new BPMNVerticalLane({ attrs: { headerText: { text, fontFamily: 'sans-serif' } }, data } as any) as unknown as shapes.bpmn2.Swimlane;
+                    }
+                    const insertIndex = targetPool.getSwimlaneInsertIndexFromPoint?.({ x, y }) ?? undefined;
+                    targetPool.addSwimlane(compatibleLane, insertIndex);
+                    this.pool = targetPool as unknown as BPMNPool;
+                }
+                return;
+            }
+
+            if (isPhaseEl(el)) {
+                const targetPool = (evt?.data?.targetPoolView?.model) as shapes.bpmn2.CompositePool | undefined;
+                if (targetPool) {
+                    const text = (el as any).attr?.('headerText/text') as string || 'Etapa';
+                    el.remove();
+                    const phase = targetPool.isHorizontal()
+                        ? new BPMNVerticalPhase({ attrs: { headerText: { text, fontFamily: 'sans-serif' } } } as any)
+                        : new BPMNHorizontalPhase({ attrs: { headerText: { text, fontFamily: 'sans-serif' } } } as any);
+                    const oCoord = (targetPool as any).getPhaseOrthogonalCoordinate?.() as 'x' | 'y' ?? 'x';
+                    const dropPos = oCoord === 'x' ? x : y;
+                    const existingPhases: unknown[] = (targetPool as any).getPhases?.() ?? [];
+                    const overlapped = (targetPool as any).findPhaseFromOrthogonalCoord?.(dropPos);
+                    if (existingPhases.length === 0 || overlapped) {
+                        (targetPool as any).addPhase(phase, dropPos);
+                    }
+                }
+                return;
+            }
+
+            if (!isPoolEl(el)) {
                 el.toFront();
+                // Ajustar el pool para contener el elemento si fue movido dentro de una lane
+                const parent = el.getParentCell();
+                if (parent && isSwimlaneEl(parent as dia.Element) && this.pool) {
+                    (this.pool as any).adjustToContainElements(parent as shapes.bpmn2.Swimlane);
+                }
             }
         });
 
