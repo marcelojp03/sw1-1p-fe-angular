@@ -21,6 +21,7 @@ export interface AverageTimeByNodeItem {
     nodeLabel: string;
     avgDurationHours: number;
     completedCount: number;
+    expectedHours?: number | null;
 }
 
 export interface TaskOverdueItem {

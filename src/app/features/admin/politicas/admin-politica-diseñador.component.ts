@@ -55,6 +55,7 @@ interface SelectedNodeData {
     assignedAreaId: string | null;
     estimatedMinutes: number | null;
     condition: string;
+    notificationTemplate: string;
     formFields: FormField[];
 }
 interface SelectedLaneData {
@@ -153,6 +154,7 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
     private stompClient?: Client;
     private wsUrl = environment.api.baseUrl.replace('/api', '') + '/ws';
     private isReceivingPatch = false;
+    private patchDebounceTimer: any;
     private resizeObserver?: ResizeObserver;
 
     nodeDefs: NodeDef[] = [
@@ -186,6 +188,7 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
     ngAfterViewInit(): void { /* canvas initialized after data loads */ }
 
     ngOnDestroy(): void {
+        clearTimeout(this.patchDebounceTimer);
         this.resizeObserver?.disconnect();
         this.snaplines?.stopListening();
         this.scroller?.remove();
@@ -732,6 +735,11 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
                 }
                 el.toFront();
             }
+            this.publishDiagramPatch();
+        });
+
+        (this.paper as any).on('link:pointerup', () => {
+            this.publishDiagramPatch();
         });
     }
 
@@ -1020,6 +1028,7 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
             assignedAreaId: data.assignedAreaId ?? null,
             estimatedMinutes: data.estimatedMinutes ?? null,
             condition: data.condition ?? '',
+            notificationTemplate: data.notificationTemplate ?? '',
             formFields: (data.form?.fields ?? []) as FormField[],
         });
     }
@@ -1157,6 +1166,36 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
         this.selected.set({ ...sel, assignedAreaId: areaId });
     }
 
+    updateEstimatedMinutes(val: number | null): void {
+        const sel = this.selected();
+        if (!sel) return;
+        const el = this.graph.getCell(sel.cellId) as dia.Element;
+        if (!el) return;
+        const data = (el as any).get('data') ?? {};
+        (el as any).set('data', { ...data, estimatedMinutes: val });
+        this.selected.set({ ...sel, estimatedMinutes: val });
+    }
+
+    updateCondition(val: string): void {
+        const sel = this.selected();
+        if (!sel) return;
+        const el = this.graph.getCell(sel.cellId) as dia.Element;
+        if (!el) return;
+        const data = (el as any).get('data') ?? {};
+        (el as any).set('data', { ...data, condition: val });
+        this.selected.set({ ...sel, condition: val });
+    }
+
+    updateNotificationTemplate(tmpl: string): void {
+        const sel = this.selected();
+        if (!sel) return;
+        const el = this.graph.getCell(sel.cellId) as dia.Element;
+        if (!el) return;
+        const data = (el as any).get('data') ?? {};
+        (el as any).set('data', { ...data, notificationTemplate: tmpl });
+        this.selected.set({ ...sel, notificationTemplate: tmpl });
+    }
+
     deleteSelected(): void {
         const sel = this.selected();
         if (!sel) return;
@@ -1288,20 +1327,25 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
             return true;
         });
 
-        const nodes: PolicyNode[] = elements.map(el => {
+        const nodes = elements.map(el => {
             const data = (el as any).get('data') ?? {};
             // Derive assignedAreaId from parent lane when not explicitly set on node
             const parent = el.getParentCell();
             const laneData = parent ? (parent as any).get('data') ?? {} : {};
+            // estimatedMinutes is in minutes (UI), slaHours is what the backend expects (hours)
+            const slaHours = data.estimatedMinutes != null
+                ? Math.round(data.estimatedMinutes / 60) || null
+                : null;
             return {
-                id: el.id as string,
-                nodeType: data.nodeType ?? 'MANUAL_FORM',
+                nodeId: el.id as string,
+                type: data.nodeType ?? 'MANUAL_FORM',
                 label: el.attr('label/text') as string ?? '',
-                assignedAreaId: data.assignedAreaId ?? laneData.assignedAreaId ?? null,
-                estimatedMinutes: data.estimatedMinutes,
+                areaId: data.assignedAreaId ?? laneData.assignedAreaId ?? null,
+                slaHours,
                 form: data.form,
-                position: (el as dia.Element).position(),
-                size: (el as dia.Element).size(),
+                notificationTemplate: data.notificationTemplate ?? null,
+                posX: Math.round((el as dia.Element).position().x),
+                posY: Math.round((el as dia.Element).position().y),
             };
         });
 
@@ -1343,6 +1387,23 @@ export class AdminPoliticaDiseñadorComponent implements OnInit, AfterViewInit, 
                 this.message.add({ severity: 'error', summary: 'Error', detail: 'No se pudo guardar el diagrama' });
             },
         });
+    }
+
+    private publishDiagramPatch(): void {
+        if (!this.stompClient?.connected || this.isReceivingPatch) return;
+        clearTimeout(this.patchDebounceTimer);
+        this.patchDebounceTimer = setTimeout(() => {
+            const patch: DiagramPatchMessage = {
+                policyId: String(this.policyId),
+                senderUserId: String(this.auth.currentUserSignal()?.id ?? ''),
+                cells: (this.graph.toJSON() as any).cells ?? [],
+                sentAt: new Date().toISOString(),
+            };
+            this.stompClient!.publish({
+                destination: `/app/diagram/${this.policyId}`,
+                body: JSON.stringify(patch),
+            });
+        }, 300);
     }
 
     private conectarDiagramaWS(): void {

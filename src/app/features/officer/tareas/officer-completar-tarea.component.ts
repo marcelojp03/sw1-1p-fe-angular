@@ -6,6 +6,7 @@ import { MessageService } from 'primeng/api';
 import { ToastModule } from 'primeng/toast';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
+import { InputNumberModule } from 'primeng/inputnumber';
 import { TextareaModule } from 'primeng/textarea';
 import { SelectModule } from 'primeng/select';
 import { DatePickerModule } from 'primeng/datepicker';
@@ -22,7 +23,7 @@ import { TaskResponse, FormField } from './tarea.model';
     standalone: true,
     imports: [
         CommonModule, FormsModule, ToastModule, ButtonModule,
-        InputTextModule, TextareaModule, SelectModule, DatePickerModule,
+        InputTextModule, InputNumberModule, TextareaModule, SelectModule, DatePickerModule,
         CheckboxModule, CardModule, ProgressSpinnerModule, TagModule, DividerModule,
     ],
     providers: [MessageService],
@@ -52,7 +53,20 @@ export class OfficerCompletarTareaComponent implements OnInit {
                 this.tarea.set(t);
                 const form = t.form as { fields?: FormField[] } | null;
                 if (form?.fields) {
-                    this.fields.set(form.fields);
+                    // Normalizar: el backend puede usar 'fieldId' en lugar de 'name'
+                    const normalized: FormField[] = (form.fields as any[]).map((f: any) => ({
+                        ...f,
+                        name: (f.name && f.name.trim()) ? f.name : (f.fieldId ?? ''),
+                    }));
+                    this.fields.set(normalized);
+                    // Inicializar formResponse con valores neutros para evitar NaN en p-inputnumber
+                    const initial: Record<string, unknown> = {};
+                    normalized.forEach((f: FormField) => {
+                        if (f.type === 'NUMBER') initial[f.name] = null;
+                        else if (f.type === 'BOOLEAN') initial[f.name] = false;
+                        else initial[f.name] = '';
+                    });
+                    this.formResponse = initial;
                 }
                 this.loading.set(false);
             },

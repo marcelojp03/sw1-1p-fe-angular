@@ -30,6 +30,7 @@ export interface CompleteTaskRequest {
 export type FieldType = 'TEXT' | 'NUMBER' | 'DATE' | 'SELECT' | 'TEXTAREA' | 'FILE' | 'BOOLEAN';
 
 export interface FormField {
+    fieldId?: string;
     name: string;
     label: string;
     type: FieldType;

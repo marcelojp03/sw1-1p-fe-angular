@@ -57,6 +57,7 @@ export class AdminDashboardComponent implements OnInit {
     bottlenecks = signal<BottleneckItem[]>([]);
     bottleneckRecommendations = signal<string[]>([]);
     bottleneckLoading = signal(false);
+    connectedUsers = signal<number>(0);
 
     private readonly statusColors: Record<string, string> = {
         IN_PROGRESS:    '#3b82f6',
@@ -86,10 +87,10 @@ export class AdminDashboardComponent implements OnInit {
         });
         this.cargarPoliticas();
         this.cargarTiempoPromedio();
+        this.cargarUsuariosConectados();
     }
 
-    cargarPoliticas(): void {
-        const orgId = this.authService.currentUserSignal()?.organizationId;
+    cargarPoliticas(): void {        const orgId = this.authService.currentUserSignal()?.organizationId;
         if (!orgId) return;
         this.http.get<any>(`${environment.api.baseUrl}/policies`, {
             params: { organizationId: String(orgId) },
@@ -101,8 +102,14 @@ export class AdminDashboardComponent implements OnInit {
         });
     }
 
-    cargarTiempoPromedio(): void {
-        const orgId = this.authService.currentUserSignal()?.organizationId;
+    cargarUsuariosConectados(): void {
+        this.http.get<{ count: number }>(`${environment.api.baseUrl}/dashboard/connected-users`).subscribe({
+            next: (res) => this.connectedUsers.set(res.count),
+            error: () => {},
+        });
+    }
+
+    cargarTiempoPromedio(): void {        const orgId = this.authService.currentUserSignal()?.organizationId;
         if (!orgId) return;
         this.avgTimeLoading.set(true);
         const policyId = this.selectedPolicyIdModel || undefined;
@@ -136,6 +143,7 @@ export class AdminDashboardComponent implements OnInit {
                 nodeId: n.nodeId,
                 label: n.nodeLabel,
                 avgDurationHours: n.avgDurationHours,
+                expectedHours: n.expectedHours ?? null,
                 pendingTasks: 0,
                 completedTasks: n.completedCount,
                 cancelledTasks: 0,

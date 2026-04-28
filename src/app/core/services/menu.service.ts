@@ -47,13 +47,6 @@ export class MenuService {
     private menuOfficer(): MenuItem[] {
         return [
             {
-                label: 'Principal',
-                items: [
-                    { label: 'Inicio', icon: 'pi pi-fw pi-home', routerLink: ['/officer'] },
-                ]
-            },
-            { separator: true },
-            {
                 label: 'Operación',
                 items: [
                     { label: 'Clientes', icon: 'pi pi-fw pi-user', routerLink: ['/officer/clientes'] },

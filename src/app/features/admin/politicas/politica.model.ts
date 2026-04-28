@@ -43,6 +43,7 @@ export interface PolicyNode {
     assignedAreaId?: number;
     estimatedMinutes?: number;
     form?: any;
+    notificationTemplate?: string;
     position?: { x: number; y: number };
     size?: { width: number; height: number };
 }

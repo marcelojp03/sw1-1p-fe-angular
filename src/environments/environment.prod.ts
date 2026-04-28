@@ -1,7 +1,7 @@
 export const environment = {
   production: true,
   api: {
-    baseUrl: 'https://s7hwsnmsxf.us-east-1.awsapprunner.com/api',
+    baseUrl: 'https://4rddb73xrv.us-east-1.awsapprunner.com/api',
     timeout: 30000,
   },
   mock: false,

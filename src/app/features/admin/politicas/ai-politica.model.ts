@@ -22,6 +22,7 @@ export interface AnalyzeBottlenecksRequest {
         nodeId: string;
         label: string;
         avgDurationHours: number;
+        expectedHours?: number | null;
         pendingTasks: number;
         completedTasks: number;
         cancelledTasks: number;
