@@ -37,7 +37,6 @@ export class MenuService {
                 label: 'Operación',
                 items: [
                     { label: 'Clientes', icon: 'pi pi-fw pi-user', routerLink: ['/admin/clientes'] },
-                    { label: 'Iniciar Trámite', icon: 'pi pi-fw pi-play', routerLink: ['/admin/tramites/nuevo'] },
                     { label: 'Trámites', icon: 'pi pi-fw pi-file', routerLink: ['/admin/tramites'] },
                     { label: 'Bandeja de Tareas', icon: 'pi pi-fw pi-inbox', routerLink: ['/admin/tareas'] },
                 ]
@@ -58,7 +57,6 @@ export class MenuService {
                 label: 'Operación',
                 items: [
                     { label: 'Clientes', icon: 'pi pi-fw pi-user', routerLink: ['/officer/clientes'] },
-                    { label: 'Iniciar Trámite', icon: 'pi pi-fw pi-play', routerLink: ['/officer/tramites/nuevo'] },
                     { label: 'Trámites', icon: 'pi pi-fw pi-file', routerLink: ['/officer/tramites'] },
                     { label: 'Bandeja de Tareas', icon: 'pi pi-fw pi-inbox', routerLink: ['/officer/tareas'] },
                 ]

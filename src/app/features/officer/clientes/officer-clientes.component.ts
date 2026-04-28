@@ -30,6 +30,7 @@ export class OfficerClientesComponent implements OnInit {
     private clientService = inject(ClientService);
     private auth = inject(AuthService);
     private message = inject(MessageService);
+    private confirmation = inject(ConfirmationService);
 
     clientes = signal<ClientResponse[]>([]);
     loading = true;

@@ -9,7 +9,6 @@ export default [
     { path: 'monitoreo', loadComponent: () => import('./monitoreo/admin-monitoreo.component').then(m => m.AdminMonitoreoComponent) },
     { path: 'clientes', loadComponent: () => import('../officer/clientes/officer-clientes.component').then(m => m.OfficerClientesComponent) },
     { path: 'tramites', loadComponent: () => import('../officer/tramites/officer-tramites.component').then(m => m.OfficerTramitesComponent) },
-    { path: 'tramites/nuevo', loadComponent: () => import('../officer/tramites/officer-nuevo-tramite.component').then(m => m.OfficerNuevoTramiteComponent) },
     { path: 'tramites/:id', loadComponent: () => import('../officer/tramites/officer-tramite-detalle.component').then(m => m.OfficerTramiteDetalleComponent) },
     { path: 'tareas', loadComponent: () => import('../officer/tareas/officer-tareas.component').then(m => m.OfficerTareasComponent) },
     { path: 'tareas/:id/completar', loadComponent: () => import('../officer/tareas/officer-completar-tarea.component').then(m => m.OfficerCompletarTareaComponent) },

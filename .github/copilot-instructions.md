@@ -10,7 +10,7 @@
 
 - Angular 21+ con **standalone components**
 - **PrimeNG 20+** + **TailwindCSS 4.x** — NO usar Angular Material
-- Diagramador: **JointJS** (`@joint/core`)
+- Diagramador: **JointJS Plus** (`@joint/plus`)
 - Tiempo real: `@stomp/stompjs` + `sockjs-client`
 - HTTP: `HttpClient` con interceptor OAuth2
 
@@ -36,7 +36,7 @@ El rol `CLIENT` **no tiene acceso a la web** (solo usa Flutter).
 - JWT guardado en `sessionStorage` (no `localStorage`)
 - Interceptor HTTP adjunta `Authorization: Bearer <token>` automáticamente
 
-## Diagramador (JointJS)
+## Diagramador (@joint/plus)
 
 - Shapes de actividad UML con swimlanes por área
 - Colaboración en tiempo real vía WebSocket STOMP
